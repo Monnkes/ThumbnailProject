@@ -1,0 +1,2 @@
+rootProject.name = 'mi-pt-1500-jelenie'
+include 'backend', 'frontend'
