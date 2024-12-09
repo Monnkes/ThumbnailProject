@@ -1,15 +1,5 @@
 version: '3'
 services:
-  backend:
-    build:
-      context: ./backend
-    ports:
-      - "8080:8080"
-    environment:
-      - SPRING_PROFILES_ACTIVE=prod
-    networks:
-      - app-network
-
   frontend:
     build:
       context: ./frontend
@@ -17,7 +7,42 @@ services:
       - "3000:80"
     networks:
       - app-network
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/db
+      - SPRING_DATASOURCE_USERNAME=user
+      - SPRING_DATASOURCE_PASSWORD=password
+    networks:
+      - app-network
+    depends_on:
+      - db
+
+  db:
+    image: postgres:latest
+    container_name: postgres-db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: db
+    ports:
+      - "5432:5432"
+    networks:
+      - app-network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
 networks:
   app-network:
     driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
