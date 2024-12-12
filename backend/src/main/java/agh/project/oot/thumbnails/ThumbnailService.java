@@ -1,41 +1,61 @@
 package agh.project.oot.thumbnails;
 
-import net.coobird.thumbnailator.Thumbnails;
+import agh.project.oot.database.*;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import java.util.List;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class ThumbnailService {
+    private final ThumbnailConverter thumbnailConverter;
+    private final ImageRepository imageRepository;
+    private final ThumbnailRepository thumbnailRepository;
 
-    private Mono<byte[]> generateThumbnail(byte[] imageData, int width, int height) {
-        return Mono.fromCallable(() -> {
-            ByteArrayInputStream inputStream = new ByteArrayInputStream(imageData);
-            BufferedImage image = ImageIO.read(inputStream);
+    public Mono<List<Long>> saveImages(List<byte[]> images, int width, int height) {
+        Flux<byte[]> imageFlux = Flux.fromIterable(images);
+        return thumbnailConverter.generateThumbnails(imageFlux, width, height)
+                .zipWith(imageFlux)
+                .flatMap(tuple -> {
+                    byte[] thumbnailData = tuple.getT1();
+                    byte[] originalImageData = tuple.getT2();
 
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                    log.info("Processing next image...");
 
-            Thumbnails.of(image)
-                    .size(width, height)
-                    .toOutputStream(outputStream);
+                    Image image = new Image();
+                    image.setData(originalImageData);
 
-            return outputStream.toByteArray();
-        });
+                    return imageRepository.save(image)
+                            .doOnSuccess(savedImage ->
+                                    log.info("Image saved successfully with ID: {}", savedImage.getId()))
+                            .flatMap(savedImage -> {
+                                Thumbnail thumbnail = new Thumbnail();
+                                thumbnail.setData(thumbnailData);
+                                thumbnail.setImageId(savedImage.getId());
+
+                                return thumbnailRepository.save(thumbnail)
+                                        .doOnSuccess(savedThumbnail ->
+                                                log.info("Thumbnail saved successfully with ID: {}", savedThumbnail.getId()))
+                                        .map(Thumbnail::getId);
+                            })
+                            .doOnTerminate(() -> log.info("Image processing completed"))
+                            .onErrorResume(e -> {
+                                log.error("Error processing image: {}", e.getMessage());
+                                return Mono.empty();
+                            });
+                })
+                .collectList();
     }
 
-    public Flux<byte[]> generateThumbnails(Flux<byte[]> imageFlux, int width, int height) {
-        return imageFlux.flatMap(imageData ->
-                generateThumbnail(imageData, width, height)
-                        .onErrorResume(error -> {
-                            System.err.println("Error processing image: " + error.getMessage());
-                            return Mono.empty();
-                        })
-        );
-    }
 
+    public Flux<Picture> getAllThumbnails() {
+        return thumbnailRepository.findAll()
+                .map(thumbnail -> new Picture(thumbnail, imageRepository))
+                .switchIfEmpty(Mono.empty());
+    }
 }

@@ -1,8 +1,9 @@
 package agh.project.oot;
 
+import agh.project.oot.thumbnails.ThumbnailController;
+import agh.project.oot.thumbnails.ThumbnailService;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
@@ -15,6 +16,12 @@ import org.springframework.web.socket.server.standard.ServletServerContainerFact
 @EnableWebSocket
 public class OotConfiguration implements WebSocketConfigurer {
 
+    private final ThumbnailService thumbnailService;
+
+    public OotConfiguration(ThumbnailService thumbnailService) {
+        this.thumbnailService = thumbnailService;
+    }
+
     @Bean
     public ObjectMapper objectMapper() {
         return Jackson2ObjectMapperBuilder.json()
@@ -23,13 +30,13 @@ public class OotConfiguration implements WebSocketConfigurer {
     }
 
     @Bean
-    public MessageController fileUploadWebSocketHandler(ObjectMapper objectMapper) {
-        return new MessageController(objectMapper);
+    public ThumbnailController thumbnailController(ObjectMapper objectMapper) {
+        return new ThumbnailController(objectMapper, thumbnailService);
     }
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(fileUploadWebSocketHandler(objectMapper()), "/upload-files")
+        registry.addHandler(thumbnailController(objectMapper()), "/upload-files")
                 .setAllowedOrigins("*");
     }
 
@@ -38,7 +45,7 @@ public class OotConfiguration implements WebSocketConfigurer {
         ServletServerContainerFactoryBean container = new ServletServerContainerFactoryBean();
         container.setMaxTextMessageBufferSize(1024 * 1024);
         container.setMaxBinaryMessageBufferSize(1024 * 1024);
+        container.setMaxSessionIdleTimeout(30000L);
         return container;
     }
 }
-
