@@ -73,7 +73,7 @@ public class ThumbnailController extends AbstractWebSocketHandler {
 
     private Mono<Void> handleGetAllThumbnails(WebSocketSession session) {
         return thumbnailService.getAllThumbnails()
-                .flatMap(thumbnailData -> sendMessage(session, new Message(Collections.singletonList(new ThumbnailDto(thumbnailData.getData())), MessageType.GetThumbnailsResponse)))
+                .flatMap(thumbnailData -> sendMessage(session, new Message(Collections.singletonList(new IconDto(thumbnailData.getId(), thumbnailData.getData())), MessageType.GetThumbnailsResponse)))
                 .then();
     }
 
