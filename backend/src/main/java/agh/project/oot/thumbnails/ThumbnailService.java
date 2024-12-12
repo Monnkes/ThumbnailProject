@@ -1,12 +1,16 @@
 package agh.project.oot.thumbnails;
 
 import agh.project.oot.database.*;
+import agh.project.oot.model.ImageDto;
+import agh.project.oot.model.ThumbnailDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
 import java.util.List;
+import java.util.NoSuchElementException;
 
 
 @Service
@@ -17,45 +21,48 @@ public class ThumbnailService {
     private final ImageRepository imageRepository;
     private final ThumbnailRepository thumbnailRepository;
 
-    public Mono<List<Long>> saveImages(List<byte[]> images, int width, int height) {
-        Flux<byte[]> imageFlux = Flux.fromIterable(images);
-        return thumbnailConverter.generateThumbnails(imageFlux, width, height)
-                .zipWith(imageFlux)
+    public Flux<Thumbnail> saveImagesAndSendThumbnails(List<ImageDto> images) {
+        Flux<ImageDto> imagesFlux = Flux.fromIterable(images);
+        return thumbnailConverter.generateThumbnails(imagesFlux)
+                .zipWith(imagesFlux)
                 .flatMap(tuple -> {
-                    byte[] thumbnailData = tuple.getT1();
-                    byte[] originalImageData = tuple.getT2();
+                    ThumbnailDto thumbnailData = tuple.getT1();
+                    ImageDto originalImageData = tuple.getT2();
 
                     log.info("Processing next image...");
 
                     Image image = new Image();
-                    image.setData(originalImageData);
+                    image.setData(originalImageData.getData());
 
                     return imageRepository.save(image)
-                            .doOnSuccess(savedImage ->
-                                    log.info("Image saved successfully with ID: {}", savedImage.getId()))
                             .flatMap(savedImage -> {
                                 Thumbnail thumbnail = new Thumbnail();
-                                thumbnail.setData(thumbnailData);
+                                thumbnail.setData(thumbnailData.getData());
                                 thumbnail.setImageId(savedImage.getId());
 
                                 return thumbnailRepository.save(thumbnail)
-                                        .doOnSuccess(savedThumbnail ->
-                                                log.info("Thumbnail saved successfully with ID: {}", savedThumbnail.getId()))
-                                        .map(Thumbnail::getId);
+                                        .map(savedThumbnail -> {
+                                            log.info("Thumbnail saved successfully with ID: {}", savedThumbnail.getId());
+                                            return savedThumbnail;
+                                        });
                             })
                             .doOnTerminate(() -> log.info("Image processing completed"))
                             .onErrorResume(e -> {
                                 log.error("Error processing image: {}", e.getMessage());
                                 return Mono.empty();
                             });
-                })
-                .collectList();
+                });
     }
 
 
-    public Flux<Picture> getAllThumbnails() {
+    public Flux<Thumbnail> getAllThumbnails() {
         return thumbnailRepository.findAll()
-                .map(thumbnail -> new Picture(thumbnail, imageRepository))
-                .switchIfEmpty(Mono.empty());
+                .switchIfEmpty((Mono.error(new NoSuchElementException("Some Thumbnails were not found"))));
+    }
+
+
+    public Mono<Image> getImageById(Long id) {
+        return imageRepository.findById(id)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Image with ID " + id + " not found")));
     }
 }

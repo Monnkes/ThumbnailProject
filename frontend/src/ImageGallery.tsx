@@ -34,7 +34,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, socket }) => {
                         src={`data:image/png;base64,${base64Image}`}
                         alt={`Uploaded ${0}`}
                         className="image"
-                        onClick={() => handleImageClick(base64Image, 0)}
+                        onClick={() => handleImageClick(base64Image, 1)}
                     />
                 </div>
             ))}

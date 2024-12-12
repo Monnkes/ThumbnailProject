@@ -26,15 +26,15 @@ const SelectedImage: React.FC<SelectedImageProps> = ({ imageData, id, socket, on
 
                 if (socket && socket.readyState === WebSocket.OPEN) {
                     const message = {
-                        type: MessageTypes.GetImages,
+                        type: MessageTypes.GetImage,
                         ids: [id],
                     };
                     socket.send(JSON.stringify(message));
 
                     socket.onmessage = (event) => {
                         const data = JSON.parse(event.data);
-                        if (data.type === MessageTypes.GetImagesResponse && data.imagesData && data.imagesData[0]) {
-                            setOriginalImage(data.imagesData[0]);
+                        if (data.type === MessageTypes.GetImageResponse && data.imagesData && data.imagesData[0]) {
+                            setOriginalImage(data.imagesData[0].data);
                         }
                     };
                 }

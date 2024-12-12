@@ -4,7 +4,9 @@ import agh.project.oot.ConnectionStatus;
 import agh.project.oot.Message;
 import agh.project.oot.MessageType;
 import agh.project.oot.ResponseStatus;
-import agh.project.oot.database.Thumbnail;
+import agh.project.oot.model.IconDto;
+import agh.project.oot.model.ImageDto;
+import agh.project.oot.model.ThumbnailDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +31,7 @@ public class ThumbnailController extends AbstractWebSocketHandler {
     private final ThumbnailService thumbnailService;
 
     @Override
-    public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) throws Exception {
+    public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) {
         if (message instanceof TextMessage textMessage) {
             processMessage(session, textMessage)
                     .subscribe(
@@ -42,11 +44,13 @@ public class ThumbnailController extends AbstractWebSocketHandler {
     private Mono<Void> processMessage(WebSocketSession session, TextMessage textMessage) {
         return Mono.fromCallable(() -> objectMapper.readValue(textMessage.getPayload(), Message.class))
                 .flatMap(requestMessage -> {
+                    log.info("Message received: {}", requestMessage);
                     MessageType messageType = requestMessage.getType();
 
                     return switch (messageType) {
                         case UploadImages -> handleUploadImages(session, requestMessage);
-                        case GetImages -> handleGetThumbnails(session, requestMessage);
+                        case GetAllThumbnails -> handleGetAllThumbnails(session);
+                        case GetImage -> handleGetImage(session, requestMessage);
                         default ->
                                 sendMessage(session, new Message(ConnectionStatus.CONNECTED, ResponseStatus.BAD_REQUEST, null, MessageType.InfoResponse));
                     };
@@ -57,31 +61,33 @@ public class ThumbnailController extends AbstractWebSocketHandler {
     }
 
     private Mono<Void> handleUploadImages(WebSocketSession session, Message requestMessage) {
-        List<byte[]> images = requestMessage.getImagesData();
-        int thumbnailWidth = 100;
-        int thumbnailHeight = 100;
+        List<ImageDto> images = requestMessage.getImagesData().stream()
+                .map(icon -> new ImageDto(icon.getData()))
+                .toList();
 
-        return thumbnailService.saveImages(images, thumbnailWidth, thumbnailHeight)
-                .flatMap(savedIds -> {
-                    log.info(savedIds.toString());
-                    return sendMessage(session, new Message(ConnectionStatus.CONNECTED, ResponseStatus.OK, null,
-                            MessageType.InfoResponse, "Images uploaded successfully with IDs: " + savedIds));
-                });
+        return thumbnailService.saveImagesAndSendThumbnails(images)
+                .flatMap(thumbnailData -> sendMessage(session, new Message(Collections.singletonList(new IconDto(thumbnailData.getId(), thumbnailData.getData())), MessageType.GetThumbnailsResponse)))
+                .then(sendMessage(session, new Message(ConnectionStatus.CONNECTED, ResponseStatus.OK, null,
+                        MessageType.InfoResponse, "Images uploaded and thumbnails sent successfully")));
     }
 
-
-
-    private Mono<Void> handleGetThumbnails(WebSocketSession session, Message requestMessage) {
+    private Mono<Void> handleGetAllThumbnails(WebSocketSession session) {
         return thumbnailService.getAllThumbnails()
-                .flatMap(picture -> {
-                    Thumbnail thumbnail = picture.getThumbnail();
-                    if (thumbnail == null) {
-                        return Mono.empty();
-                    }
+                .flatMap(thumbnailData -> sendMessage(session, new Message(Collections.singletonList(new ThumbnailDto(thumbnailData.getData())), MessageType.GetThumbnailsResponse)))
+                .then();
+    }
 
-                    byte[] thumbnailData = thumbnail.getData();
-                    log.info("handleGetThumbnails");
-                    return sendMessage(session, new Message(Collections.singletonList(thumbnailData), MessageType.GetImagesResponse));
+    private Mono<Void> handleGetImage(WebSocketSession session, Message requestMessage) {
+        Long imageId = requestMessage.getIds().getFirst();
+
+        return thumbnailService.getImageById(imageId)
+                .flatMap(imageData -> {
+                    var img = new ImageDto(imageData.getData());
+                    List<IconDto> temp = List.of(img);
+                    var msg = new Message(List.copyOf(temp), MessageType.GetImageResponse);
+                    msg.setImagesData(List.copyOf(temp));
+
+                    return sendMessage(session, msg);
                 })
                 .then();
     }
@@ -91,6 +97,7 @@ public class ThumbnailController extends AbstractWebSocketHandler {
             try {
                 String jsonMessage = objectMapper.writeValueAsString(message);
                 session.sendMessage(new TextMessage(jsonMessage));
+                log.info("Message sent successfully");
             } catch (IOException e) {
                 log.error("Error sending message: {}", e.getMessage());
             }
@@ -98,8 +105,15 @@ public class ThumbnailController extends AbstractWebSocketHandler {
     }
 
     @Override
-    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        session.sendMessage(new TextMessage("Connection established"));
+    public void afterConnectionEstablished(WebSocketSession session) {
+        sendMessage(session, new Message(ConnectionStatus.CONNECTED, ResponseStatus.OK, null, MessageType.InfoResponse, "Connection established"));
         log.info("Connection established");
+
+        handleGetAllThumbnails(session)
+                .then(Mono.defer(Mono::empty))
+                .subscribe(
+                        success -> log.info("All init thumbnails sent successfully"),
+                        error -> log.error("Error getting thumbnails", error) // error callback
+                );
     }
 }

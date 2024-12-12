@@ -4,7 +4,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
-import org.springframework.data.relational.core.mapping.Embedded;
 
 @Setter
 @Getter
@@ -17,5 +16,4 @@ public class Thumbnail {
     private byte[] data;
 
     private Long imageId;
-
 }

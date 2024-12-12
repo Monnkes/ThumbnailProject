@@ -37,19 +37,20 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({onClose, onUpload, socket}
 
                 if (socket && socket.readyState === WebSocket.OPEN) {
                     const message = {
-                        type: MessageTypes.UploadImages,
-                        imagesData: base64Images,
+                        type: "UploadImages",
+                        imagesData: base64Images.map(image => ({ data: image, id: null })),
                     };
+                    console.log(message);
                     socket.send(JSON.stringify(message));
 
                     // // ONLY FOR TESTING REMOVE
-                    for (let i = 0; i < base64Images.length; i++) {
-                        const getMessage = {
-                            type: MessageTypes.GetImages,
-                            ids: [i],
-                        };
-                        socket.send(JSON.stringify(getMessage));
-                    }
+                    // for (let i = 0; i < base64Images.length; i++) {
+                    //     const getMessage = {
+                    //         type: MessageTypes.GetImages,
+                    //         ids: [i],
+                    //     };
+                    //     socket.send(JSON.stringify(getMessage));
+                    // }
                 }
 
                 setSelectedFiles([]);

@@ -6,6 +6,11 @@ import './styles/App.css';
 import configuration from './frontendConfiguration.json';
 import MessageTypes from './MessageTypes';
 
+interface Thumbnail {
+    data: string;
+    id: number;
+}
+
 function App() {
     const [images, setImages] = useState<string[]>([]);
     const [numberOfImages, setNumberOfImages] = useState<number>(0);
@@ -31,8 +36,8 @@ function App() {
             const data = JSON.parse(event.data);
             console.log('Message received:', data);
 
-            if (data.type === MessageTypes.GetImagesResponse && data.imagesData) {
-                addThumbnails(data.imagesData);
+            if (data.type === MessageTypes.GetThumbnailsResponse && data.imagesData) {
+                addThumbnails(data.imagesData.map((thumbnail: Thumbnail) => thumbnail.data));
             }
         };
 

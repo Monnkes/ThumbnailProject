@@ -5,6 +5,5 @@ public enum ResponseStatus {
     BAD_REQUEST(400);
 
     ResponseStatus(int status) {
-
     }
 }
