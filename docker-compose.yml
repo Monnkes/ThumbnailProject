@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   frontend:
     build:
@@ -31,6 +30,8 @@ services:
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
+    volumes:
+      - ./db/sql:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
     networks:
