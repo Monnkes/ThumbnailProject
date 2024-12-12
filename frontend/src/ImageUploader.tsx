@@ -5,8 +5,13 @@ import MessageTypes from './MessageTypes';
 
 interface ImageUploaderProps {
     onClose: () => void;
-    onUpload: (base64Images: string[]) => void;
+    onUpload: (base64Images: ImageData[]) => void;
     socket: WebSocket | null;
+}
+
+interface ImageData {
+    data: string;
+    id: number;
 }
 
 const ImageUploader: React.FC<ImageUploaderProps> = ({onClose, onUpload, socket}) => {
@@ -19,12 +24,15 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({onClose, onUpload, socket}
     };
 
     const handleUpload = () => {
-        const base64Images: string[] = [];
+        const base64Images: ImageData[] = [];
 
         const promises = selectedFiles.map((file) => {
-            return new Promise<string>((resolve, reject) => {
+            return new Promise<ImageData>((resolve, reject) => {
                 const reader = new FileReader();
-                reader.onload = () => resolve(reader.result!.toString().split(',')[1]);
+                reader.onload = () => {
+                    const base64Data = reader.result!.toString().split(',')[1];
+                    resolve({ data: base64Data, id: 0 }); // Assign id as null initially
+                };
                 reader.onerror = (error) => reject(error);
                 reader.readAsDataURL(file);
             });
@@ -38,7 +46,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({onClose, onUpload, socket}
                 if (socket && socket.readyState === WebSocket.OPEN) {
                     const message = {
                         type: "UploadImages",
-                        imagesData: base64Images.map(image => ({ data: image, id: null })),
+                        imagesData: base64Images.map(image => ({ data: image.data, id: image.id })),
                     };
                     console.log(message);
                     socket.send(JSON.stringify(message));

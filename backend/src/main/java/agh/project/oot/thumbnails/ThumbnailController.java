@@ -80,15 +80,8 @@ public class ThumbnailController extends AbstractWebSocketHandler {
     private Mono<Void> handleGetImage(WebSocketSession session, Message requestMessage) {
         Long imageId = requestMessage.getIds().getFirst();
 
-        return thumbnailService.getImageById(imageId)
-                .flatMap(imageData -> {
-                    var img = new ImageDto(imageData.getData());
-                    List<IconDto> temp = List.of(img);
-                    var msg = new Message(List.copyOf(temp), MessageType.GetImageResponse);
-                    msg.setImagesData(List.copyOf(temp));
-
-                    return sendMessage(session, msg);
-                })
+        return thumbnailService.getImageByThumbnailId(imageId)
+                .flatMap(imageData -> sendMessage(session, new Message(List.of(new ImageDto(imageData.getData())), MessageType.GetImageResponse)))
                 .then();
     }
 

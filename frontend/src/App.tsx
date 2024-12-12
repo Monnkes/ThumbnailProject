@@ -6,20 +6,20 @@ import './styles/App.css';
 import configuration from './frontendConfiguration.json';
 import MessageTypes from './MessageTypes';
 
-interface Thumbnail {
+interface ImageData {
     data: string;
     id: number;
 }
 
 function App() {
-    const [images, setImages] = useState<string[]>([]);
+    const [images, setImages] = useState<ImageData[]>([]);
     const [numberOfImages, setNumberOfImages] = useState<number>(0);
     const [isUploaderOpen, setIsUploaderOpen] = useState<boolean>(false);
     const [socket, setSocket] = useState<WebSocket | null>(null);
-    const loadingIcon: string = configuration.loadingIcon;
+    const loadingIcon: ImageData = {data: configuration.loadingIcon, id: 0};
 
     const numberOfThumbnailsRef = useRef<number>(0);
-    const imagesRef = useRef<string[]>([]);
+    const imagesRef = useRef<ImageData[]>([]);
 
     useEffect(() => {
         imagesRef.current = images;
@@ -37,7 +37,12 @@ function App() {
             console.log('Message received:', data);
 
             if (data.type === MessageTypes.GetThumbnailsResponse && data.imagesData) {
-                addThumbnails(data.imagesData.map((thumbnail: Thumbnail) => thumbnail.data));
+                addThumbnails(
+                    data.imagesData.map((thumbnail: ImageData) => ({
+                        id: thumbnail.id,
+                        data: thumbnail.data,
+                    }))
+                );
             }
         };
 
@@ -58,14 +63,14 @@ function App() {
         };
     }, []);
 
-    const addIcons = (newImages: string[]) => {
+    const addIcons = (newImages: ImageData[]) => {
         const loadingIcons = new Array(newImages.length).fill(loadingIcon);
         setNumberOfImages((prevNumber) => prevNumber + newImages.length);
         setImages((prevImages) => [...prevImages, ...loadingIcons]);
         console.log("Current images (after adding icons):", imagesRef.current);
     };
 
-    const addThumbnails = (thumbnails: string[]) => {
+    const addThumbnails = (thumbnails: ImageData[]) => {
         setImages(prevImages => {
             const updatedImages = [...prevImages];
             for (let i = numberOfThumbnailsRef.current; i < numberOfThumbnailsRef.current + thumbnails.length; i++) {

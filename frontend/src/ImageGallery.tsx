@@ -3,18 +3,21 @@ import SelectedImage from './SelectedImage';
 import './styles/ImageGallery.css';
 
 interface ImageGalleryProps {
-    images: string[];
+    images: ImageData[];
     socket: WebSocket | null;
 }
 
+interface ImageData {
+    data: string;
+    id: number;
+}
+
 const ImageGallery: React.FC<ImageGalleryProps> = ({ images, socket }) => {
-    const [selectedImageData, setSelectedImageData] = useState<string | null>(null);
-    const [selectedImageId, setSelectedImageId] = useState<number | null>(null);
+    const [selectedImage, setSelectedImage] = useState<ImageData | null>(null);
     const [showPopup, setShowPopup] = useState(false);
 
     const handleImageClick = (image: string, index: number) => {
-        setSelectedImageData(image);
-        setSelectedImageId(index);
+        setSelectedImage({ data: image, id: index });
         setShowPopup(true);
     };
 
@@ -31,18 +34,18 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, socket }) => {
             {images.map((base64Image) => (
                 <div key={0} className="image-container">
                     <img
-                        src={`data:image/png;base64,${base64Image}`}
+                        src={`data:image/png;base64,${base64Image.data}`}
                         alt={`Uploaded ${0}`}
                         className="image"
-                        onClick={() => handleImageClick(base64Image, 1)}
+                        onClick={() => handleImageClick(base64Image.data, base64Image.id)}
                     />
                 </div>
             ))}
 
-            {showPopup && selectedImageData && selectedImageId !== null && (
+            {showPopup && selectedImage && (
                 <SelectedImage
-                    imageData={selectedImageData}
-                    id={selectedImageId}
+                    imageData={selectedImage.data}
+                    id={selectedImage.id}
                     socket={socket}
                     onUpload={handleUpload}
                     onClose={handleClosePopup}

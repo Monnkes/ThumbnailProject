@@ -61,8 +61,13 @@ public class ThumbnailService {
     }
 
 
-    public Mono<Image> getImageById(Long id) {
-        return imageRepository.findById(id)
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("Image with ID " + id + " not found")));
+    public Mono<Image> getImageByThumbnailId(Long thumbnailId) {
+        return thumbnailRepository.findById(thumbnailId)
+                .flatMap(thumbnail -> {
+                    Long imageId = thumbnail.getImageId();
+                    return imageRepository.findById(imageId)
+                            .switchIfEmpty(Mono.error(new IllegalArgumentException("Image with ID " + imageId + " not found")));
+                })
+                .switchIfEmpty(Mono.error(new NoSuchElementException("Thumbnail with ID " + thumbnailId + " not found")));
     }
 }
