@@ -53,6 +53,13 @@ function App() {
             if (data.type === MessageTypes.GetImageResponse && data.imagesData && data.imagesData[0]) {
                 setOriginalImage(data.imagesData[0]);
             }
+            if (data.type === MessageTypes.Ping) {
+                const message = {
+                    type: MessageTypes.Pong,
+                };
+                ws.send(JSON.stringify(message));
+                console.log("Message send: ", message);
+            }
         };
 
         ws.onclose = () => {

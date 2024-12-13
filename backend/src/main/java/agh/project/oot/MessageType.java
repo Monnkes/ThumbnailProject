@@ -6,5 +6,7 @@ public enum MessageType {
     GetImage,
     GetThumbnailsResponse,
     GetImageResponse,
-    InfoResponse
+    InfoResponse,
+    Ping,
+    Pong
 }

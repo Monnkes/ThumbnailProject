@@ -53,6 +53,7 @@ public class ThumbnailController extends AbstractWebSocketHandler {
                         case UploadImages -> handleUploadImages(session, requestMessage);
                         case GetAllThumbnails -> handleGetAllThumbnails(session);
                         case GetImage -> handleGetImage(session, requestMessage);
+                        case Pong -> handlePongMessage(session);
                         default ->
                                 sendMessage(session, new Message(ConnectionStatus.CONNECTED, ResponseStatus.BAD_REQUEST, null, MessageType.InfoResponse));
                     };
@@ -60,6 +61,11 @@ public class ThumbnailController extends AbstractWebSocketHandler {
                 .onErrorResume(error -> sendMessage(session, new Message(ConnectionStatus.CONNECTED, ResponseStatus.BAD_REQUEST,
                         null, MessageType.InfoResponse, error.getMessage())
                 ));
+    }
+
+    public Mono<Void> handlePongMessage(WebSocketSession session) {
+        return Mono.delay(Duration.ofSeconds(15))
+                .then(sendMessage(session, new Message(null, MessageType.Ping)));
     }
 
     private Mono<Void> handleUploadImages(WebSocketSession session, Message requestMessage) {
@@ -89,6 +95,7 @@ public class ThumbnailController extends AbstractWebSocketHandler {
     }
 
     private Mono<Void> sendMessage(WebSocketSession session, Message message) {
+        log.info("Sending message...");
         return Mono.defer(() -> {
             if (!session.isOpen()) {
                 log.error("Session is not open");
@@ -98,6 +105,7 @@ public class ThumbnailController extends AbstractWebSocketHandler {
             try {
                 String jsonMessage = objectMapper.writeValueAsString(message);
                 session.sendMessage(new TextMessage(jsonMessage));
+                log.info("Message sent successfully");
                 return Mono.empty();
             } catch (IOException e) {
                 log.error("Error sending message: {}", e.getMessage());
@@ -112,14 +120,19 @@ public class ThumbnailController extends AbstractWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
-        sendMessage(session, new Message(ConnectionStatus.CONNECTED, ResponseStatus.OK, null, MessageType.InfoResponse, "Connection established"));
+        sendMessage(session, new Message(ConnectionStatus.CONNECTED, ResponseStatus.OK, null, MessageType.InfoResponse, "Connection established"))
+                .then(sendMessage(session, new Message(null, MessageType.Ping)))
+                .subscribe(
+                        success -> log.info("Message processed successfully"),
+                        error -> log.error("Error processing message: {}", error.getMessage()));
+
         log.info("Connection established");
 
         handleGetAllThumbnails(session)
                 .then(Mono.defer(Mono::empty))
                 .subscribe(
                         success -> log.info("All init thumbnails sent successfully"),
-                        error -> log.error("Error getting thumbnails", error) // error callback
+                        error -> log.error("Error getting thumbnails", error)
                 );
     }
 }
