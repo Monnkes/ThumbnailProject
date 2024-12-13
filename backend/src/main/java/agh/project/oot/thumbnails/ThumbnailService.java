@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -25,11 +26,11 @@ public class ThumbnailService {
         Flux<ImageDto> imagesFlux = Flux.fromIterable(images);
         return thumbnailConverter.generateThumbnails(imagesFlux)
                 .zipWith(imagesFlux)
+                .parallel()
+                .runOn(Schedulers.parallel())
                 .flatMap(tuple -> {
                     ThumbnailDto thumbnailData = tuple.getT1();
                     ImageDto originalImageData = tuple.getT2();
-
-                    log.info("Processing next image...");
 
                     Image image = new Image();
                     image.setData(originalImageData.getData());
@@ -46,17 +47,20 @@ public class ThumbnailService {
                                             return savedThumbnail;
                                         });
                             })
-                            .doOnTerminate(() -> log.info("Image processing completed"))
                             .onErrorResume(e -> {
                                 log.error("Error processing image: {}", e.getMessage());
                                 return Mono.empty();
                             });
-                });
+                })
+                .sequential();
     }
 
 
     public Flux<Thumbnail> getAllThumbnails() {
         return thumbnailRepository.findAll()
+                .parallel()
+                .runOn(Schedulers.parallel())
+                .sequential()
                 .switchIfEmpty((Mono.error(new NoSuchElementException("Some Thumbnails were not found"))));
     }
 

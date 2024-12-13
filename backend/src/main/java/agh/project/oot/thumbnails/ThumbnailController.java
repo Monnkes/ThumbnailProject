@@ -17,6 +17,7 @@ import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.AbstractWebSocketHandler;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -73,6 +74,7 @@ public class ThumbnailController extends AbstractWebSocketHandler {
 
     private Mono<Void> handleGetAllThumbnails(WebSocketSession session) {
         return thumbnailService.getAllThumbnails()
+                .publishOn(Schedulers.parallel())
                 .flatMap(thumbnailData -> sendMessage(session, new Message(Collections.singletonList(new IconDto(thumbnailData.getId(), thumbnailData.getData())), MessageType.GetThumbnailsResponse)))
                 .then();
     }
