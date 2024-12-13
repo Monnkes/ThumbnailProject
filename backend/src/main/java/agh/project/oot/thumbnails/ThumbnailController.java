@@ -6,7 +6,6 @@ import agh.project.oot.MessageType;
 import agh.project.oot.ResponseStatus;
 import agh.project.oot.model.IconDto;
 import agh.project.oot.model.ImageDto;
-import agh.project.oot.model.ThumbnailDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -18,8 +17,10 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.AbstractWebSocketHandler;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import reactor.util.retry.Retry;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 
@@ -83,20 +84,30 @@ public class ThumbnailController extends AbstractWebSocketHandler {
         Long imageId = requestMessage.getIds().getFirst();
 
         return thumbnailService.getImageByThumbnailId(imageId)
-                .flatMap(imageData -> sendMessage(session, new Message(List.of(new ImageDto(imageData.getData())), MessageType.GetImageResponse)))
+                .flatMap(imageData -> sendMessage(session, new Message(List.of(new ImageDto(imageData.getData(), imageData.getId())), MessageType.GetImageResponse)))
                 .then();
     }
 
     private Mono<Void> sendMessage(WebSocketSession session, Message message) {
-        return Mono.fromRunnable(() -> {
+        return Mono.defer(() -> {
+            if (!session.isOpen()) {
+                log.error("Session is not open");
+                return Mono.empty();
+            }
+
             try {
                 String jsonMessage = objectMapper.writeValueAsString(message);
                 session.sendMessage(new TextMessage(jsonMessage));
-                log.info("Message sent successfully");
+                return Mono.empty();
             } catch (IOException e) {
                 log.error("Error sending message: {}", e.getMessage());
+                return Mono.error(e);
             }
-        });
+        }).retryWhen(Retry.backoff(5, Duration.ofSeconds(1))
+                .doBeforeRetry(retrySignal -> log.info("Retrying send attempt #{}", retrySignal.totalRetries() + 1))
+                .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) ->
+                        new RuntimeException("Retries exhausted for sendMessage", retrySignal.failure()))
+        ).then();
     }
 
     @Override

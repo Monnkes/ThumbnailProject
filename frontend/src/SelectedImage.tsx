@@ -1,18 +1,22 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect} from 'react';
 import './styles/SelectedImage.css';
 import MessageTypes from "./MessageTypes";
 
 interface SelectedImageProps {
     imageData: string;
+    originalImage: ImageData
     id: number;
     socket: WebSocket | null;
     onUpload: (images: string[]) => void;
     onClose: () => void;
 }
 
-const SelectedImage: React.FC<SelectedImageProps> = ({ imageData, id, socket, onUpload, onClose }) => {
-    const [originalImage, setOriginalImage] = useState<string>('');
+interface ImageData {
+    data: string;
+    id: number;
+}
 
+const SelectedImage: React.FC<SelectedImageProps> = ({ imageData, id, originalImage, socket, onUpload, onClose }) => {
     useEffect(() => {
         handleUpload();
     }, []);
@@ -30,13 +34,6 @@ const SelectedImage: React.FC<SelectedImageProps> = ({ imageData, id, socket, on
                         ids: [id],
                     };
                     socket.send(JSON.stringify(message));
-
-                    socket.onmessage = (event) => {
-                        const data = JSON.parse(event.data);
-                        if (data.type === MessageTypes.GetImageResponse && data.imagesData && data.imagesData[0]) {
-                            setOriginalImage(data.imagesData[0].data);
-                        }
-                    };
                 }
             })
             .catch((error) => {
@@ -49,7 +46,7 @@ const SelectedImage: React.FC<SelectedImageProps> = ({ imageData, id, socket, on
             <div className="popup-content">
                 <button className="popup-close" onClick={onClose}>X</button>
                 <h3></h3>
-                <img src={`data:image/png;base64,${originalImage}`} alt={`Selected ${id}`} className="popup-image"/>
+                <img src={`data:image/png;base64,${originalImage.data}`} alt={`Selected ${originalImage.id}`} className="popup-image"/>
             </div>
         </div>
     );

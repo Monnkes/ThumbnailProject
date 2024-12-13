@@ -17,4 +17,9 @@ public class ImageDto extends IconDto {
     public ImageDto(byte[] data) {
         this.data = data;
     }
+
+    public ImageDto(byte[] data, Long id) {
+        this.data = data;
+        this.id = id;
+    }
 }

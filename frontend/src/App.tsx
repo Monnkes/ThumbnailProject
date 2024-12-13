@@ -11,9 +11,14 @@ interface ImageData {
     id: number;
 }
 
+const createDefaultImageData = (): ImageData => ({
+    data: "",
+    id: 0,
+});
+
 function App() {
     const [images, setImages] = useState<ImageData[]>([]);
-    const [numberOfImages, setNumberOfImages] = useState<number>(0);
+    const [originalImage, setOriginalImage] = useState<ImageData>(createDefaultImageData);
     const [isUploaderOpen, setIsUploaderOpen] = useState<boolean>(false);
     const [socket, setSocket] = useState<WebSocket | null>(null);
     const loadingIcon: ImageData = {data: configuration.loadingIcon, id: 0};
@@ -44,6 +49,10 @@ function App() {
                     }))
                 );
             }
+
+            if (data.type === MessageTypes.GetImageResponse && data.imagesData && data.imagesData[0]) {
+                setOriginalImage(data.imagesData[0]);
+            }
         };
 
         ws.onclose = () => {
@@ -65,7 +74,6 @@ function App() {
 
     const addIcons = (newImages: ImageData[]) => {
         const loadingIcons = new Array(newImages.length).fill(loadingIcon);
-        setNumberOfImages((prevNumber) => prevNumber + newImages.length);
         setImages((prevImages) => [...prevImages, ...loadingIcons]);
         console.log("Current images (after adding icons):", imagesRef.current);
     };
@@ -96,7 +104,7 @@ function App() {
                     socket={socket}
                 />
             )}
-            <ImageGallery images={images} socket={socket} />
+            <ImageGallery images={images} originalImage={originalImage} socket={socket} />
         </div>
     );
 }

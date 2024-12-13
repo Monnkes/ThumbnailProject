@@ -16,8 +16,8 @@ interface ImageData {
 }
 
 const calculateBase64Size = (base64: string): number => {
-    const padding = (base64.match(/=+$/) || [""])[0].length; // Liczba znaków '=' na końcu Base64
-    return (base64.length * 3) / 4 - padding; // Przekształcenie długości tekstu na rozmiar w bajtach
+    const padding = (base64.match(/=+$/) || [""])[0].length;
+    return (base64.length * 3) / 4 - padding;
 };
 
 
