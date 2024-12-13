@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import './styles/ImageUploader.css';
 import texts from './texts/texts.json';
+import frontendConfiguration from './frontendConfiguration.json';
 import MessageTypes from './MessageTypes';
 
 interface ImageUploaderProps {
@@ -13,6 +14,12 @@ interface ImageData {
     data: string;
     id: number;
 }
+
+const calculateBase64Size = (base64: string): number => {
+    const padding = (base64.match(/=+$/) || [""])[0].length; // Liczba znaków '=' na końcu Base64
+    return (base64.length * 3) / 4 - padding; // Przekształcenie długości tekstu na rozmiar w bajtach
+};
+
 
 const ImageUploader: React.FC<ImageUploaderProps> = ({onClose, onUpload, socket}) => {
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -31,7 +38,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({onClose, onUpload, socket}
                 const reader = new FileReader();
                 reader.onload = () => {
                     const base64Data = reader.result!.toString().split(',')[1];
-                    resolve({ data: base64Data, id: 0 }); // Assign id as null initially
+                    resolve({ data: base64Data, id: 0 });
                 };
                 reader.onerror = (error) => reject(error);
                 reader.readAsDataURL(file);
@@ -44,21 +51,33 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({onClose, onUpload, socket}
                 onUpload(base64Images);
 
                 if (socket && socket.readyState === WebSocket.OPEN) {
-                    const message = {
-                        type: "UploadImages",
-                        imagesData: base64Images.map(image => ({ data: image.data, id: image.id })),
-                    };
-                    console.log(message);
-                    socket.send(JSON.stringify(message));
+                    let currentBatch: ImageData[] = [];
+                    let currentSize = 0;
 
-                    // // ONLY FOR TESTING REMOVE
-                    // for (let i = 0; i < base64Images.length; i++) {
-                    //     const getMessage = {
-                    //         type: MessageTypes.GetImages,
-                    //         ids: [i],
-                    //     };
-                    //     socket.send(JSON.stringify(getMessage));
-                    // }
+                    const sendImagesBatch = (batch: ImageData[]) => {
+                        const message = {
+                            type: MessageTypes.UploadImages,
+                            imagesData: batch.map(image => ({data: image.data, id: image.id})),
+                        };
+                        console.log(message);
+                        socket.send(JSON.stringify(message));
+                    };
+
+                    base64Images.forEach((image) => {
+                        const imageSize = calculateBase64Size(image.data);
+
+                        if (currentSize + imageSize > frontendConfiguration.max_batch_size) {
+                            sendImagesBatch(currentBatch);
+                            currentSize = 0;
+                            currentBatch = [];
+                        }
+
+                        currentBatch.push(image);
+                        currentSize += imageSize;
+                    });
+                    if (currentBatch.length > 0) {
+                        sendImagesBatch(currentBatch);
+                    }
                 }
 
                 setSelectedFiles([]);
