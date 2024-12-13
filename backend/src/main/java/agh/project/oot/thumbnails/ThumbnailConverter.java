@@ -1,7 +1,7 @@
 package agh.project.oot.thumbnails;
 
-import agh.project.oot.model.ImageDto;
-import agh.project.oot.model.ThumbnailDto;
+import agh.project.oot.model.Image;
+import agh.project.oot.model.Thumbnail;
 import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,7 +23,7 @@ public class ThumbnailConverter {
         this.height = height;
     }
 
-    private Mono<ThumbnailDto> generateThumbnail(ImageDto image) {
+    private Mono<Thumbnail> generateThumbnail(Image image) {
         return Mono.fromCallable(() -> {
             ByteArrayInputStream inputStream = new ByteArrayInputStream(image.getData());
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -32,12 +32,12 @@ public class ThumbnailConverter {
                     .size(width, height)
                     .toOutputStream(outputStream);
 
-            return new ThumbnailDto(outputStream.toByteArray());
+            return new Thumbnail(outputStream.toByteArray());
         });
     }
 
 
-    public Flux<ThumbnailDto> generateThumbnails(Flux<ImageDto> imageFlux) {
+    public Flux<Thumbnail> generateThumbnails(Flux<Image> imageFlux) {
         return imageFlux.flatMap(imageData ->
                 generateThumbnail(imageData)
                         .doOnError(error -> {

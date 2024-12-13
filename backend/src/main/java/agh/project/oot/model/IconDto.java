@@ -6,6 +6,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class IconDto {
+
     private Long id;
 
     private byte[] data;

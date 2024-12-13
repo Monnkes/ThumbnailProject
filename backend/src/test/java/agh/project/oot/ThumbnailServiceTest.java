@@ -1,20 +1,14 @@
 package agh.project.oot;
 
-import static org.mockito.Mockito.*;
-
-import agh.project.oot.database.ImageRepository;
-import agh.project.oot.database.Thumbnail;
-import agh.project.oot.database.Image;
-import agh.project.oot.database.ThumbnailRepository;
+import agh.project.oot.repository.ImageRepository;
+import agh.project.oot.repository.ThumbnailRepository;
 import agh.project.oot.thumbnails.ThumbnailConverter;
-import agh.project.oot.thumbnails.ThumbnailService;
+import agh.project.oot.service.ThumbnailService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 import java.util.List;
 

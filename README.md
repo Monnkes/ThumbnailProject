@@ -69,7 +69,9 @@ To run the application using Docker, follow these steps:
 - **[12-12-2024]** Original image on click fixing
 - **[12-12-2024]** Final implementation
 - **[12-12-2024]** Add parallel
-
+- **[12-12-2024]** Final implementation
+- **[12-12-2024]** Code refactoring before M1
+- 
 ## Links
 - [Documentation](https://lucid.app/lucidchart/d1242d14-599a-4b54-be8e-1b0afc12c6f4/edit?viewport_loc=9882%2C-418%2C14033%2C6586%2C0_0&invitationId=inv_491730a8-bb13-4598-88fb-191e7f3f69cd)
 
