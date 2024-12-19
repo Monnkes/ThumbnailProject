@@ -7,7 +7,6 @@ interface SelectedImageProps {
     originalImage: ImageData
     id: number;
     socket: WebSocket | null;
-    onUpload: (images: string[]) => void;
     onClose: () => void;
 }
 
@@ -16,7 +15,7 @@ interface ImageData {
     id: number;
 }
 
-const SelectedImage: React.FC<SelectedImageProps> = ({ imageData, id, originalImage, socket, onUpload, onClose }) => {
+const SelectedImage: React.FC<SelectedImageProps> = ({ imageData, id, originalImage, socket, onClose }) => {
     useEffect(() => {
         handleUpload();
     }, []);
@@ -25,12 +24,11 @@ const SelectedImage: React.FC<SelectedImageProps> = ({ imageData, id, originalIm
         const promises = [new Promise<string>((resolve) => resolve(imageData))];
 
         Promise.all(promises)
-            .then((results) => {
-                onUpload(results);
+            .then(() => {
 
                 if (socket && socket.readyState === WebSocket.OPEN) {
                     const message = {
-                        type: MessageTypes.GetImage,
+                        type: MessageTypes.GET_IMAGE,
                         ids: [id],
                     };
                     socket.send(JSON.stringify(message));

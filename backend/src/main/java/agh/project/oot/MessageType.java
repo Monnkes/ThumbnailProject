@@ -1,12 +1,12 @@
 package agh.project.oot;
 
 public enum MessageType {
-    UploadImages,
-    GetAllThumbnails,
-    GetImage,
-    GetThumbnailsResponse,
-    GetImageResponse,
-    InfoResponse,
-    Ping,
-    Pong
+    UPLOAD_IMAGES,
+    GET_ALL_THUMBNAILS,
+    GET_IMAGE,
+    GET_THUMBNAILS_RESPONSE,
+    GET_IMAGE_RESPONSE,
+    INFO_RESPONSE,
+    PING,
+    PONG
 }

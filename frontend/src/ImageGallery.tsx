@@ -26,10 +26,6 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, originalImage, sock
         setShowPopup(false);
     };
 
-    const handleUpload = (images: string[]) => {
-        console.log('Uploaded images: ', images);
-    };
-
     return (
         <div className="gallery">
             {images.map((base64Image) => (
@@ -49,7 +45,6 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, originalImage, sock
                     id={selectedImage.id}
                     originalImage={originalImage}
                     socket={socket}
-                    onUpload={handleUpload}
                     onClose={handleClosePopup}
                 />
             )}

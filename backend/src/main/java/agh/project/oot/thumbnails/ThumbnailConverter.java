@@ -23,7 +23,7 @@ public class ThumbnailConverter {
         this.height = height;
     }
 
-    private Mono<Thumbnail> generateThumbnail(Image image) {
+    public Mono<Thumbnail> generateThumbnail(Image image) {
         return Mono.fromCallable(() -> {
             ByteArrayInputStream inputStream = new ByteArrayInputStream(image.getData());
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -31,11 +31,9 @@ public class ThumbnailConverter {
             Thumbnails.of(inputStream)
                     .size(width, height)
                     .toOutputStream(outputStream);
-
             return new Thumbnail(outputStream.toByteArray());
-        });
+        }).onErrorResume(error -> Mono.error(new UnsupportedImageFormatException(error.getMessage())));
     }
-
 
     public Flux<Thumbnail> generateThumbnails(Flux<Image> imageFlux) {
         return imageFlux.flatMap(imageData ->

@@ -5,6 +5,7 @@ import texts from './texts/texts.json';
 import './styles/App.css';
 import configuration from './frontendConfiguration.json';
 import MessageTypes from './MessageTypes';
+import ResponseStatusTypes from "./ResponseStatusTypes";
 
 interface ImageData {
     data: string;
@@ -41,7 +42,7 @@ function App() {
             const data = JSON.parse(event.data);
             console.log('Message received:', data);
 
-            if (data.type === MessageTypes.GetThumbnailsResponse && data.imagesData) {
+            if (data.type === MessageTypes.GET_THUMBNAILS_RESPONSE && data.imagesData) {
                 addThumbnails(
                     data.imagesData.map((thumbnail: ImageData) => ({
                         id: thumbnail.id,
@@ -50,15 +51,26 @@ function App() {
                 );
             }
 
-            if (data.type === MessageTypes.GetImageResponse && data.imagesData && data.imagesData[0]) {
+            if (data.type === MessageTypes.GET_IMAGE_RESPONSE && data.imagesData && data.imagesData[0]) {
                 setOriginalImage(data.imagesData[0]);
             }
-            if (data.type === MessageTypes.Ping) {
+            if (data.type === MessageTypes.PING) {
                 const message = {
-                    type: MessageTypes.Pong,
+                    type: MessageTypes.PONG,
                 };
                 ws.send(JSON.stringify(message));
                 console.log("Message send: ", message);
+            }
+
+            if (data.type === MessageTypes.INFO_RESPONSE && data.responseStatus === ResponseStatusTypes.UNSUPPORTED_MEDIA_TYPE) {
+                setImages((prevImages) => {
+                    // const remainingLoadingIcons = prevImages.filter((image) => image.data === configuration.loadingIcon);
+                    // const failedUploadsCount = remainingLoadingIcons.length;
+
+                    alert(`${texts.uploadFailure}`);
+
+                    return prevImages.filter((image) => image.data !== configuration.loadingIcon);
+                });
             }
         };
 
@@ -82,7 +94,6 @@ function App() {
     const addIcons = (newImages: ImageData[]) => {
         const loadingIcons = new Array(newImages.length).fill(loadingIcon);
         setImages((prevImages) => [...prevImages, ...loadingIcons]);
-        console.log("Current images (after adding icons):", imagesRef.current);
     };
 
     const addThumbnails = (thumbnails: ImageData[]) => {

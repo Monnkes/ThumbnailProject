@@ -37,6 +37,19 @@ services:
     networks:
       - app-network
 
+  db_test:
+    image: postgres:latest
+    restart: always
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpassword
+    volumes:
+      - ./db/sql:/docker-entrypoint-initdb.d
+    ports:
+      - "5433:5432"
+    networks:
+      - app-network
+
 networks:
   app-network:
     driver: bridge

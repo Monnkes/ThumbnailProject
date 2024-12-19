@@ -23,8 +23,11 @@ public class Thumbnail {
         this.data = data;
     }
 
-    public Thumbnail(byte[] data, Long id) {
+    public Thumbnail(byte[] data, Long imageId) {
         this.data = data;
-        this.id = id;
+        this.imageId = imageId;
+    }
+    public static Thumbnail from(Image image) {
+        return new Thumbnail(image.getData(), image.getId());
     }
 }

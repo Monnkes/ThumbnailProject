@@ -56,17 +56,20 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({onClose, onUpload, socket}
 
                     const sendImagesBatch = (batch: ImageData[]) => {
                         const message = {
-                            type: MessageTypes.UploadImages,
+                            type: MessageTypes.UPLOAD_IMAGES,
                             imagesData: batch.map(image => ({data: image.data, id: image.id})),
                         };
-                        console.log(message);
+                        console.log("SIZE: " + calculateBase64Size(JSON.stringify(message)));
                         socket.send(JSON.stringify(message));
                     };
 
                     base64Images.forEach((image) => {
                         const imageSize = calculateBase64Size(image.data);
 
-                        if (currentSize + imageSize > frontendConfiguration.max_batch_size) {
+                        if(imageSize > frontendConfiguration.max_batch_size){
+                            console.error("Image too large");
+                        }
+                        else if (currentSize + imageSize > frontendConfiguration.max_batch_size) {
                             sendImagesBatch(currentBatch);
                             currentSize = 0;
                             currentBatch = [];

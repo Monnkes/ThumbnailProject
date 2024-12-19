@@ -19,6 +19,14 @@ public class IconDto {
         this.data = data;
     }
 
+    public static IconDto from(Thumbnail thumbnail) {
+        return new IconDto(thumbnail.getId(), thumbnail.getData());
+    }
+
+    public static IconDto from(Image image) {
+        return new IconDto(image.getId(), image.getData());
+    }
+
     @Override
     public String toString() {
         return "Icon{" +

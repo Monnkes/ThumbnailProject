@@ -3,5 +3,6 @@
   "upload": "Upload",
   "cancel": "Cancel",
   "addPhotos": "Add Photos",
-  "uploadImages": "Upload Images"
+  "uploadImages": "Upload Images",
+  "uploadFailure" : "Failed to upload package. Some images were unsupported!"
 }
