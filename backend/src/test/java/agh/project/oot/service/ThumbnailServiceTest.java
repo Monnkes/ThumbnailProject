@@ -61,30 +61,30 @@ class ThumbnailServiceTest {
     }
 
     /**
-     * Tests that an empty result is returned when a database read error occurs while saving images.
+     * Tests that an error is thrown when a database read error occurs while saving images.
      */
-//    @Test
-//    void shouldReturnEmptyOnDatabaseReadError() {
-//        byte[] imageData1 = new byte[]{1, 2, 3};
-//        byte[] imageData2 = new byte[]{4, 5, 6};
-//
-//        Image image1 = new Image(imageData1, 1L);
-//        Image image2 = new Image(imageData2, 2L);
-//
-//        when(imageRepositoryMock.save(any(Image.class)))
-//                .thenReturn(Mono.error(new RuntimeException("Error reading from image repository")));
-//
-//        when(thumbnailConverterMock.generateThumbnail(any(Image.class)))
-//                .thenReturn(Mono.just(new Thumbnail(imageData1, 1L)))
-//                .thenReturn(Mono.just(new Thumbnail(imageData2, 2L)));
-//
-//        StepVerifier.create(thumbnailService.saveImagesAndSendThumbnails(List.of(image1, image2)))
-//                .expectNextCount(0)
-//                .verifyComplete();
-//
-//        verify(imageRepositoryMock, times(2)).save(any(Image.class));
-//        verify(thumbnailRepositoryMock, times(0)).save(any(Thumbnail.class));
-//    }
+    @Test
+    void shouldThrowErrorOnDatabaseReadError() {
+        byte[] imageData1 = new byte[]{1, 2, 3};
+        byte[] imageData2 = new byte[]{4, 5, 6};
+
+        Image image1 = new Image(imageData1, 1L);
+        Image image2 = new Image(imageData2, 2L);
+
+        when(imageRepositoryMock.save(any(Image.class)))
+                .thenReturn(Mono.error(new RuntimeException("Error reading from image repository")));
+
+        when(thumbnailConverterMock.generateThumbnail(any(Image.class)))
+                .thenReturn(Mono.just(new Thumbnail(imageData1, 1L)))
+                .thenReturn(Mono.just(new Thumbnail(imageData2, 2L)));
+
+        StepVerifier.create(thumbnailService.saveImagesAndSendThumbnails(List.of(image1, image2)))
+                .expectError(RuntimeException.class)
+                .verify();
+
+        verify(imageRepositoryMock, times(2)).save(any(Image.class));
+        verifyNoInteractions(thumbnailRepositoryMock);
+    }
 
     /**
      * Retrieves all thumbnails from the database.

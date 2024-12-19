@@ -4,6 +4,7 @@ import agh.project.oot.ConnectionStatus;
 import agh.project.oot.Message;
 import agh.project.oot.MessageType;
 import agh.project.oot.ResponseStatus;
+import agh.project.oot.model.IconDto;
 import agh.project.oot.model.Thumbnail;
 import agh.project.oot.repository.ThumbnailRepository;
 import agh.project.oot.utils.ImageReader;
@@ -14,9 +15,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.client.WebSocketClient;
@@ -24,10 +24,8 @@ import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import reactor.core.publisher.Mono;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -43,6 +41,10 @@ public class ThumbnailControllerTest {
     @Autowired
     ThumbnailRepository thumbnailRepository;
 
+    @Autowired
+    DatabaseClient databaseClient;
+
+
     @LocalServerPort
     private int port;
 
@@ -52,14 +54,15 @@ public class ThumbnailControllerTest {
     private volatile WebSocketSession testSession;
     private WebSocketClient client;
     private CountDownLatch latch;
+    boolean await;
 
     @BeforeEach
     public void setup() {
+        thumbnailRepository.deleteAll().block();
+        deleteAllAndResetSequence().block();
         URL = "ws://localhost:" + port + "/upload-files";
         client = new StandardWebSocketClient();
-        latch = new CountDownLatch(10);
         messagesList.clear();
-        System.err.println(port);
 
         handler = new TextWebSocketHandler() {
 
@@ -73,46 +76,80 @@ public class ThumbnailControllerTest {
             protected void handleTextMessage(WebSocketSession session, TextMessage message) throws JsonProcessingException {
                 Message responseMessage = objectMapper.readValue(message.getPayload(), Message.class);
                 messagesList.add(responseMessage);
-                System.err.println("ID" + session.getId() + " " + responseMessage);
                 latch.countDown();
             }
         };
     }
 
     @Test
-    public void testThumbnailController() throws Exception {
-//        mockThumbnail("thumbnails/Linux.png");
-//        mockThumbnail("thumbnails/NewYork.png");
-//        mockThumbnail("thumbnails/Ufo.jpg");
-//        client.execute(handler, URL).get(30, TimeUnit.SECONDS);
-//
-//        boolean await = latch.await(30, TimeUnit.SECONDS);
-////        assertTrue(await, "Nie otrzymano odpowiedzi");
-//
-//        System.err.println(messagesList);
-//
-//        boolean awaitResponse = latch.await(20, TimeUnit.SECONDS);
-////        assertTrue(awaitResponse, "Nie otrzymano odpowiedzi");
-//        testSession.sendMessage(new TextMessage(objectMapper.writeValueAsString(new Message(null, MessageType.PONG))));
-//
-//        System.err.println(messagesList);
-//
-//        boolean a = latch.await(20, TimeUnit.SECONDS);
-//        testSession.sendMessage(new TextMessage(objectMapper.writeValueAsString(new Message(null, MessageType.PONG))));
-//
-//        boolean b = latch.await(20, TimeUnit.SECONDS);
-//        testSession.sendMessage(new TextMessage(objectMapper.writeValueAsString(new Message(null, MessageType.PONG))));
-//
-//        assertNotNull(messagesList.getFirst(), "Odpowiedź jest pusta");
-//        assertThat(messagesList.getFirst()).isEqualTo(new Message(ConnectionStatus.CONNECTED, ResponseStatus.OK, null, MessageType.INFO_RESPONSE, "Connection established"));
-//        System.err.println(messagesList);
-//
-//        assertThat(messagesList.getFirst()).isEqualTo(new Message(ConnectionStatus.CONNECTED, ResponseStatus.OK, null, MessageType.INFO_RESPONSE, "Connection established"));
+    public void shouldReturnAllSaveThumbnailsAfterInitConnection() throws Exception {
+        // Given
+        Thumbnail linux = mockThumbnail("thumbnails/Linux.png");
+        Thumbnail newYork = mockThumbnail("thumbnails/NewYork.png");
+        Thumbnail ufo = mockThumbnail("thumbnails/Ufo.jpg");
+        latch = new CountDownLatch(5);
+
+        // When
+        client.execute(handler, URL).get(5, TimeUnit.SECONDS);
+        await = latch.await(20, TimeUnit.SECONDS);
+
+        // Then
+        assertTrue(await, "Too few messages");
+        assertThat(messagesList).hasSize(5);
+
+        assertThat(messagesList.getFirst()).isEqualTo(new Message(
+                ConnectionStatus.CONNECTED,
+                ResponseStatus.OK,
+                null,
+                MessageType.INFO_RESPONSE,
+                "Connection established"
+        ));
+
+        assertThat(messagesList).contains(new Message(
+                ConnectionStatus.CONNECTED,
+                ResponseStatus.OK,
+                List.of(new IconDto(linux.getId(), linux.getData())),
+                MessageType.GET_THUMBNAILS_RESPONSE,
+                null
+        ));
+
+        assertThat(messagesList).contains(new Message(
+                ConnectionStatus.CONNECTED,
+                ResponseStatus.OK,
+                List.of(new IconDto(newYork.getId(), newYork.getData())),
+                MessageType.GET_THUMBNAILS_RESPONSE,
+                null
+        ));
+
+        assertThat(messagesList).contains(new Message(
+                ConnectionStatus.CONNECTED,
+                ResponseStatus.OK,
+                List.of(new IconDto(ufo.getId(), ufo.getData())),
+                MessageType.GET_THUMBNAILS_RESPONSE,
+                null
+        ));
+
+        assertThat(messagesList).contains(new Message(
+                ConnectionStatus.CONNECTED,
+                ResponseStatus.OK,
+                null,
+                MessageType.PING,
+                null
+        ));
     }
 
-    private void mockThumbnail(String path) {
+    private Thumbnail mockThumbnail(String path) {
         byte[] image = ImageReader.loadImageAsBytes(path);
-        Thumbnail thumbnail =  new Thumbnail(image);
+        Thumbnail thumbnail = new Thumbnail(image);
         thumbnailRepository.save(thumbnail).block();
+        return thumbnail;
+    }
+
+    public Mono<Void> deleteAllAndResetSequence() {
+        return thumbnailRepository.deleteAll()
+                .then(databaseClient.sql("ALTER SEQUENCE public.thumbnails_id_seq RESTART WITH 1")
+                        .fetch()
+                        .rowsUpdated()
+                        .then());
     }
 }

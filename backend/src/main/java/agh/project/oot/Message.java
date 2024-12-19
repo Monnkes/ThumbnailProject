@@ -41,59 +41,59 @@ public class Message {
     }
 
     /**
-     * Metoda obliczająca rozmiar wiadomości.
-     * @return rozmiar wiadomości w bajtach.
+     * Method that calculates the size of the message.
+     * @return the size of the message in bytes.
      */
     public int calculateSize() {
         int size = 0;
 
-        // Rozmiar pola connectionStatus (enum)
-        size += Integer.BYTES; // enum zajmuje 4 bajty
+        // Size of the connectionStatus field (enum)
+        size += Integer.BYTES; // enum takes 4 bytes
 
-        // Rozmiar pola responseStatus (enum)
-        size += Integer.BYTES; // enum zajmuje 4 bajty
+        // Size of the responseStatus field (enum)
+        size += Integer.BYTES; // enum takes 4 bytes
 
-        // Rozmiar pola type (enum)
-        size += Integer.BYTES; // enum zajmuje 4 bajty
+        // Size of the type field (enum)
+        size += Integer.BYTES; // enum takes 4 bytes
 
-        // Rozmiar pola imagesData (List<IconDto>)
+        // Size of the imagesData field (List<IconDto>)
         if (imagesData != null) {
-            size += Integer.BYTES; // dla samej listy (referencja)
+            size += Integer.BYTES; // for the list itself (reference)
             for (IconDto iconDto : imagesData) {
-                size += calculateIconDtoSize(iconDto); // obliczanie rozmiaru każdego IconDto
+                size += calculateIconDtoSize(iconDto); // calculate the size of each IconDto
             }
         }
 
-        // Rozmiar pola ids (List<Long>)
+        // Size of the ids field (List<Long>)
         if (ids != null) {
-            size += Integer.BYTES; // dla samej listy (referencja)
-            for (Long id : ids) {
-                size += Long.BYTES; // Long zajmuje 8 bajtów
+            size += Integer.BYTES; // for the list itself (reference)
+            for (Long ignored : ids) {
+                size += Long.BYTES; // Long takes 8 bytes
             }
         }
 
-        // Rozmiar pola details (String)
+        // Size of the details field (String)
         if (details != null) {
-            size += details.getBytes(StandardCharsets.UTF_8).length; // obliczanie rozmiaru tekstu w bajtach
+            size += details.getBytes(StandardCharsets.UTF_8).length; // calculate the size of the text in bytes
         }
 
         return size;
     }
 
     /**
-     * Metoda pomocnicza obliczająca rozmiar obiektu IconDto.
-     * @param iconDto obiekt IconDto.
-     * @return rozmiar obiektu IconDto w bajtach.
+     * Helper method that calculates the size of an IconDto object.
+     * @param iconDto the IconDto object.
+     * @return the size of the IconDto object in bytes.
      */
     private int calculateIconDtoSize(IconDto iconDto) {
         int size = 0;
 
-        // Rozmiar pola id (Long)
-        size += Long.BYTES; // Long zajmuje 8 bajtów
+        // Size of the id field (Long)
+        size += Long.BYTES; // Long takes 8 bytes
 
-        // Rozmiar pola data (byte[])
+        // Size of the data field (byte[])
         if (iconDto.getData() != null) {
-            size += iconDto.getData().length; // rozmiar tablicy byte[] (rozmiar danych w bajtach)
+            size += iconDto.getData().length; // size of the byte[] array (size of the data in bytes)
         }
 
         return size;

@@ -2,7 +2,7 @@ import subprocess
 import time
 import os
 
-# Funkcja do uruchamiania komendy systemowej
+# Function to execute a system command
 def run_command(command):
     result = subprocess.run(command, shell=True, text=True, capture_output=True)
     if result.returncode != 0:
@@ -10,54 +10,56 @@ def run_command(command):
         raise Exception(f"Command failed: {command}")
     return result.stdout
 
-# Uruchomienie kontenera bazy danych
+# Start the database container
 def start_database():
-    print("Uruchamianie kontenera bazy danych...")
+    print("Starting the database container...")
     run_command("docker-compose up -d db_test")
 
-# Sprawdzanie dostępności bazy danych
+# Check database availability
 def wait_for_database():
-    print("Czekam na uruchomienie bazy danych...")
+    print("Waiting for the database to become available...")
     while True:
         result = subprocess.run(
-            "docker-compose up db_test",
+            "docker-compose up -d db_test",
             shell=True, text=True, capture_output=True
         )
         if result.returncode == 0:
-            print("Baza danych jest gotowa!")
+            print("The database is ready!")
             break
         else:
-            print("Baza danych nie jest jeszcze gotowa, czekam...")
+            print("The database is not ready yet, waiting...")
             time.sleep(2)
 
-# Uruchomienie testów Gradle
+# Run Gradle tests and print failed tests
 def run_tests():
-    print("Uruchamianie testów Gradle...")
+    print("Running Gradle tests...")
 
     current_directory = os.path.dirname(os.path.abspath(__file__))
 
-    # Zbuduj ścieżkę do folderu backendu na podstawie lokalizacji skryptu
+    # Build the path to the backend folder based on the script location
     backend_directory = os.path.join(current_directory, 'backend')
 
-    # Zmień katalog roboczy na folder backendu
+    # Change the working directory to the backend folder
     os.chdir(backend_directory)
 
-    result = subprocess.run("gradlew check", shell=True, text=True, capture_output=True)
-    if result.returncode != 0:
-        print(f"Testy nie powiodły się: {result.stderr}")
-        raise Exception("Testy zakończone niepowodzeniem")
-    else:
-        print("Testy zakończone sukcesem!")
+    # Run Gradle with --continue option to allow further tests even if some fail
+    result = subprocess.run("gradlew check --continue", shell=True, text=True, capture_output=True)
 
-# Zatrzymanie kontenerów Docker po zakończeniu testów
+    # Capture the output and check if there were failed tests
+    if result.returncode != 0:
+        print("\033[91mTests did not pass. Here are the failed tests:\n\033[0m", result.stderr)
+    else:
+        print("\033[92mTests passed successfully!\033[0m")
+
+# Stop Docker containers after tests
 def stop_database():
-    print("Zatrzymywanie kontenerów Docker...")
-    run_command("docker-compose down")  # Zatrzymuje kontenery
+    print("Stopping Docker containers...")
+    run_command("docker-compose down")  # Stops containers
 
 def main():
     try:
         start_database()
-        # wait_for_database()
+        wait_for_database()
         run_tests()
     finally:
         stop_database()

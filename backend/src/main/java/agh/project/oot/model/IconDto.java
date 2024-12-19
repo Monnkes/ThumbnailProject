@@ -1,10 +1,12 @@
 package agh.project.oot.model;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
+@EqualsAndHashCode
 public class IconDto {
 
     private Long id;
@@ -31,7 +33,7 @@ public class IconDto {
     public String toString() {
         return "Icon{" +
                 "id=" + id +
-                ", data size=" + data.length +
+                ", dataSize=" + data.length +
                 '}';
     }
 }
