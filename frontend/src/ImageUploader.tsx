@@ -48,11 +48,12 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({onClose, onUpload, socket}
         Promise.all(promises)
             .then((results) => {
                 base64Images.push(...results);
-                onUpload(base64Images);
+                const uploadedImages: ImageData[] = [];
 
                 if (socket && socket.readyState === WebSocket.OPEN) {
                     let currentBatch: ImageData[] = [];
                     let currentSize = 0;
+                    let batchCount = 0;
 
                     const sendImagesBatch = (batch: ImageData[]) => {
                         const message = {
@@ -63,25 +64,36 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({onClose, onUpload, socket}
                         socket.send(JSON.stringify(message));
                     };
 
-                    base64Images.forEach((image) => {
+                   for (const image of base64Images) {
                         const imageSize = calculateBase64Size(image.data);
 
                         if(imageSize > frontendConfiguration.max_batch_size){
-                            console.error("Image too large");
+                            alert(`${texts.tooLargeImage}`);
+                            continue;
                         }
                         else if (currentSize + imageSize > frontendConfiguration.max_batch_size) {
                             sendImagesBatch(currentBatch);
+                            uploadedImages.push(...currentBatch);
                             currentSize = 0;
                             currentBatch = [];
+                            batchCount++;
                         }
-
-                        currentBatch.push(image);
-                        currentSize += imageSize;
-                    });
-                    if (currentBatch.length > 0) {
+                        if (batchCount < frontendConfiguration.max_batch_amount) {
+                            currentBatch.push(image);
+                            currentSize += imageSize;
+                        }
+                        else {
+                            alert(`${texts.maxBatchesLimit}`);
+                            break;
+                        }
+                   }
+                    if (currentBatch.length > 0 && batchCount < frontendConfiguration.max_batch_amount) {
                         sendImagesBatch(currentBatch);
+                        uploadedImages.push(...currentBatch);
                     }
                 }
+
+                onUpload(uploadedImages);
 
                 setSelectedFiles([]);
                 onClose();

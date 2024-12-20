@@ -6,15 +6,19 @@ import agh.project.oot.MessageType;
 import agh.project.oot.ResponseStatus;
 import agh.project.oot.model.IconDto;
 import agh.project.oot.model.Image;
+import agh.project.oot.model.Thumbnail;
 import agh.project.oot.thumbnails.UnsupportedImageFormatException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.coobird.thumbnailator.tasks.UnsupportedFormatException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
 import reactor.util.retry.RetryBackoffSpec;
 
@@ -49,7 +53,7 @@ public class MessageService {
 
     public Mono<Void> sendMessage(WebSocketSession session, Message message) {
         log.info("Preparing to send message. Session ID: {}", session.getId());
-        log.info("Rozmiar wiadomości WebSocket: {} bajtów", message.calculateSize());
+        log.info("WebSocket message size: {} bytes", message.calculateSize());
 
         return Mono.defer(() -> {
                     if (!session.isOpen()) {
@@ -66,15 +70,15 @@ public class MessageService {
                         log.info("Message sent successfully. Session ID: {}", session.getId());
                         return Mono.empty();
                     } catch (IOException e) {
-                        log.error("IOException while sending message. Session ID: {}, Error: {}", session.getId(), e.getMessage(), e);
+                        log.error("IOException while sending message. Session ID: {}, Error: {}", session.getId(), e.getMessage());
                         return Mono.error(e);
                     } catch (Exception e) {
-                        log.error("Unexpected error while sending message. Session ID: {}, Error: {}", session.getId(), e.getMessage(), e);
+                        log.error("Unexpected error while sending message. Session ID: {}, Error: {}", session.getId(), e.getMessage());
                         return Mono.error(e);
                     }
                 })
                 .doOnSubscribe(subscription -> log.debug("Subscription started for sending message. Session ID: {}", session.getId()))
-                .doOnError(e -> log.error("Error occurred during message sending. Session ID: {}, Error: {}", session.getId(), e.getMessage(), e))
+                .doOnError(e -> log.error("Error occurred during message sending. Session ID: {}, Error: {}", session.getId(), e.getMessage()))
                 .doOnSuccess(ignored -> log.debug("Message sending process completed successfully. Session ID: {}", session.getId()))
                 .retryWhen(getRetrySpec())
                 .doFinally(signal -> log.info("Send message process finished with signal: {}. Session ID: {}", signal, session.getId()))
@@ -87,10 +91,27 @@ public class MessageService {
                 .map(icon -> new Image(icon.getData()))
                 .toList();
 
-        return thumbnailService.saveImagesAndSendThumbnails(images)
-                .flatMap(thumbnailData -> sendMessage(session, new Message(Collections.singletonList(IconDto.from(thumbnailData)), MessageType.GET_THUMBNAILS_RESPONSE)))
-                .then(sendMessage(session, new Message(ConnectionStatus.CONNECTED, ResponseStatus.OK, null, MessageType.INFO_RESPONSE, "Images uploaded successfully")));
+        return Flux.fromIterable(images)
+                .parallel()
+                .runOn(Schedulers.parallel())
+                .flatMap(image -> this.processSingleImage(session, image))
+                .sequential()
+                .then();
     }
+
+    private Mono<Thumbnail> processSingleImage(WebSocketSession session, Image image) {
+        return thumbnailService.saveImageAndThumbnail(image)
+                .flatMap(thumbnail ->
+                        sendMessage(session, new Message(Collections.singletonList(IconDto.from(thumbnail)), MessageType.GET_THUMBNAILS_RESPONSE))
+                                .then(Mono.just(thumbnail))
+                )
+                .onErrorResume(error -> {
+                    log.error("Error processing image: {}", error.getMessage());
+                    return sendErrorResponse(session, error)
+                            .then(Mono.empty());
+                });
+    }
+
 
     public Mono<Void> handleGetAllThumbnails(WebSocketSession session) {
         return thumbnailService.getAllThumbnails()
@@ -106,7 +127,7 @@ public class MessageService {
                 .doOnError(error -> log.error("Error getting thumbnails", error))
                 .onErrorResume(e -> {
                     log.error("Fallback due to error", e);
-                    return Mono.empty();
+                    return Mono.error(e);
                 })
                 .then();
     }
@@ -130,7 +151,7 @@ public class MessageService {
 
     public Mono<Void> sendErrorResponse(WebSocketSession session, Throwable error) {
         log.error("Error processing message {}", error.getMessage());
-        if (error.getClass() == UnsupportedImageFormatException.class){
+        if (error.getClass() == UnsupportedImageFormatException.class || error.getClass() == UnsupportedFormatException.class) {
             return sendBadRequest(session, "Internal error: " + error.getMessage(), ResponseStatus.UNSUPPORTED_MEDIA_TYPE);
         }
         return sendBadRequest(session, "Internal error: " + error.getMessage(), ResponseStatus.BAD_REQUEST);

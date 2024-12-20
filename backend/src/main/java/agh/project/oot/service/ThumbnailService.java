@@ -31,11 +31,12 @@ public class ThumbnailService {
      * @param images the list of images to process.
      * @return a Flux of saved thumbnails.
      */
+    @Deprecated
     public Flux<Thumbnail> saveImagesAndSendThumbnails(List<Image> images) {
         return Flux.fromIterable(images)
                 .parallel()
                 .runOn(Schedulers.parallel())
-                .flatMap(this::processSingleImage)
+                .flatMap(this::saveImageAndThumbnail)
                 .sequential();
     }
 
@@ -45,7 +46,7 @@ public class ThumbnailService {
      * @param image the image to process.
      * @return a Mono of the saved thumbnail.
      */
-    private Mono<Thumbnail> processSingleImage(Image image) {
+    public Mono<Thumbnail> saveImageAndThumbnail(Image image) {
         return thumbnailConverter.generateThumbnail(image)
                 .flatMap(thumbnail -> saveImageAndThumbnail(image, thumbnail))
                 .onErrorResume(error -> {

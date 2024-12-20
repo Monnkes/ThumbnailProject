@@ -20,6 +20,7 @@ class ThumbnailConverterTest {
      */
     @Test
     void shouldGenerateThumbnail() throws IOException {
+        // Given
         int width = 150;
         int height = 150;
         ThumbnailConverter thumbnailConverter = new ThumbnailConverter(width, height);
@@ -27,9 +28,11 @@ class ThumbnailConverterTest {
         byte[] inputData = createFakeImageData();
         Image inputImage = new Image(inputData);
 
+        // When
         Mono<Thumbnail> thumbnailMono = thumbnailConverter.generateThumbnail(inputImage);
         Thumbnail result = thumbnailMono.block();
 
+        // Then
         assertNotNull(result, "Generated thumbnail should not be null");
         assertNotNull(result.getData(), "Thumbnail data should not be null");
         assertIsValidThumbnail(result.getData(), width, height);

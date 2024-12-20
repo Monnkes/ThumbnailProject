@@ -13,14 +13,14 @@ def run_command(command):
 # Start the database container
 def start_database():
     print("Starting the database container...")
-    run_command("docker-compose up -d db_test")
+    run_command("docker-compose --profile db_test up --build")
 
 # Check database availability
 def wait_for_database():
     print("Waiting for the database to become available...")
     while True:
         result = subprocess.run(
-            "docker-compose up -d db_test",
+            "docker-compose --profile db_test up --build",
             shell=True, text=True, capture_output=True
         )
         if result.returncode == 0:
@@ -54,12 +54,12 @@ def run_tests():
 # Stop Docker containers after tests
 def stop_database():
     print("Stopping Docker containers...")
-    run_command("docker-compose down")  # Stops containers
+    run_command("docker-compose --profile db_test down -v")  # Stops containers
 
 def main():
     try:
         start_database()
-        wait_for_database()
+#         wait_for_database()
         run_tests()
     finally:
         stop_database()

@@ -44,7 +44,6 @@ public class ThumbnailControllerTest {
     @Autowired
     DatabaseClient databaseClient;
 
-
     @LocalServerPort
     private int port;
 
@@ -69,7 +68,7 @@ public class ThumbnailControllerTest {
             @Override
             public void afterConnectionEstablished(WebSocketSession session) {
                 testSession = session;
-                testSession.setTextMessageSizeLimit(1024 * 1024 * 10);
+                testSession.setTextMessageSizeLimit(1024 * 1024);
             }
 
             @Override

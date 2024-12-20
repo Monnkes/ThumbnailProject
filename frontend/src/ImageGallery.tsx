@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, {Dispatch, SetStateAction, useState} from 'react';
 import SelectedImage from './SelectedImage';
 import './styles/ImageGallery.css';
+import configuration from './frontendConfiguration.json'
 
 interface ImageGalleryProps {
     images: ImageData[];
     originalImage: ImageData;
     socket: WebSocket | null;
+    setOriginalImage: Dispatch<SetStateAction<ImageData>>;
 }
 
 interface ImageData {
@@ -13,7 +15,7 @@ interface ImageData {
     id: number;
 }
 
-const ImageGallery: React.FC<ImageGalleryProps> = ({ images, originalImage, socket }) => {
+const ImageGallery: React.FC<ImageGalleryProps> = ({ images, originalImage, socket, setOriginalImage }) => {
     const [showPopup, setShowPopup] = useState(false);
     const [selectedImage, setSelectedImage] = useState<ImageData | null>(null);
 
@@ -23,6 +25,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, originalImage, sock
     };
 
     const handleClosePopup = () => {
+        setOriginalImage({ data: configuration.loadingIcon, id: 0 });
         setShowPopup(false);
     };
 

@@ -8,6 +8,8 @@ services:
       - app-network
     depends_on:
       - backend
+    profiles:
+      - default
 
   backend:
     build:
@@ -23,6 +25,8 @@ services:
       - app-network
     depends_on:
       - db
+    profiles:
+      - default
 
   db:
     image: postgres:latest
@@ -36,6 +40,8 @@ services:
       - "5432:5432"
     networks:
       - app-network
+    profiles:
+      - default
 
   db_test:
     image: postgres:latest
@@ -48,12 +54,12 @@ services:
     ports:
       - "5433:5432"
     networks:
-      - app-network
+      - test-network
+    profiles:
+      - db_test
 
 networks:
   app-network:
     driver: bridge
-
-volumes:
-  postgres_data:
-    driver: local
+  test-network:
+    driver: bridge

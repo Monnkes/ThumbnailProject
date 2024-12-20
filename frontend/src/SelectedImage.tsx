@@ -1,4 +1,4 @@
-import React, {useEffect} from 'react';
+import React, {Dispatch, SetStateAction, useEffect} from 'react';
 import './styles/SelectedImage.css';
 import MessageTypes from "./MessageTypes";
 

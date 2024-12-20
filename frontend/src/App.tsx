@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import ImageGallery from './ImageGallery';
 import ImageUploader from './ImageUploader';
 import texts from './texts/texts.json';
@@ -13,7 +13,7 @@ interface ImageData {
 }
 
 const createDefaultImageData = (): ImageData => ({
-    data: "",
+    data: configuration.loadingIcon,
     id: 0,
 });
 
@@ -64,12 +64,11 @@ function App() {
 
             if (data.type === MessageTypes.INFO_RESPONSE && data.responseStatus === ResponseStatusTypes.UNSUPPORTED_MEDIA_TYPE) {
                 setImages((prevImages) => {
-                    // const remainingLoadingIcons = prevImages.filter((image) => image.data === configuration.loadingIcon);
-                    // const failedUploadsCount = remainingLoadingIcons.length;
-
                     alert(`${texts.uploadFailure}`);
 
-                    return prevImages.filter((image) => image.data !== configuration.loadingIcon);
+                    return prevImages[prevImages.length - 1].id === 0
+                        ? prevImages.slice(0, prevImages.length - 1)
+                        : prevImages;
                 });
             }
         };
@@ -122,7 +121,8 @@ function App() {
                     socket={socket}
                 />
             )}
-            <ImageGallery images={images} originalImage={originalImage} socket={socket} />
+            <ImageGallery images={images} originalImage={originalImage} socket={socket}
+                          setOriginalImage={setOriginalImage}/>
         </div>
     );
 }
