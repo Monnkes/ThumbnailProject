@@ -1,0 +1,12 @@
+enum MessageTypes {
+    UPLOAD_IMAGES = "UPLOAD_IMAGES",
+    GET_IMAGE = "GET_IMAGE",
+    GET_THUMBNAILS_RESPONSE = "GET_THUMBNAILS_RESPONSE",
+    GET_IMAGE_RESPONSE = "GET_IMAGE_RESPONSE",
+    INFO_RESPONSE = "INFO_RESPONSE",
+    PING = "PING",
+    PONG = "PONG",
+}
+
+export default MessageTypes;
+

@@ -1,0 +1,6 @@
+// ws://localhost:8080/upload-files
+
+{
+    "type": "GET_IMAGE",
+    "ids": [0]
+}

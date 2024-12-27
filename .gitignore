@@ -1,0 +1,73 @@
+# Java / Spring Boot
+
+# Maven
+target/
+!target/classes/
+!target/test-classes/
+*.iml
+.idea/
+
+# Gradle
+.gradle/
+build/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# NetBeans
+nbproject/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Java logs
+*.log
+
+# Lombok generated files
+*.lombok/
+
+# Frontend (React, Jest)
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build outputs
+build/
+dist/
+
+# React (create-react-app)
+coverage/
+
+# Jest
+*.test.js.snap
+*.test.js.md
+
+# Caffeine Cache
+
+# Caffeine cache configuration files (if any)
+caffeine-cache-config/
+
+# Spring WebFlux
+
+# Spring Boot-specific
+*.properties
+*.yml
+
+# IntelliJ configuration for Spring Boot
+.idea/
+
+# .env files for environment variables
+.env
+.env.local
+
+# Other build files
+*.iml
