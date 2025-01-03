@@ -19,6 +19,8 @@ public class Thumbnail {
 
     private Long imageId;
 
+    private String type;
+
     public Thumbnail() {}
 
     public Thumbnail(byte[] data) {

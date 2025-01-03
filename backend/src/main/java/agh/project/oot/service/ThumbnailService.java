@@ -25,51 +25,24 @@ public class ThumbnailService {
     private final ImageRepository imageRepository;
     private final ThumbnailRepository thumbnailRepository;
 
-    /**
-     * Processes a list of images, generates thumbnails, and saves them to the database.
-     *
-     * @param images the list of images to process.
-     * @return a Flux of saved thumbnails.
-     */
-    @Deprecated
-    public Flux<Thumbnail> saveImagesAndSendThumbnails(List<Image> images) {
-        return Flux.fromIterable(images)
-                .parallel()
-                .runOn(Schedulers.parallel())
-                .flatMap(this::saveImageAndThumbnail)
-                .sequential();
-    }
-
-    /**
-     * Handles the processing of a single image: generates a thumbnail and saves both the image and its thumbnail.
-     *
-     * @param image the image to process.
-     * @return a Mono of the saved thumbnail.
-     */
-    public Mono<Thumbnail> saveImageAndThumbnail(Image image) {
-        return thumbnailConverter.generateThumbnail(image)
-                .flatMap(thumbnail -> saveImageAndThumbnail(image, thumbnail))
-                .onErrorResume(error -> {
-                    log.error("Error processing image: {}", error.getMessage());
-                    return Mono.error(error);
-                });
-    }
-
-    /**
-     * Saves an image and its corresponding thumbnail to the database.
-     *
-     * @param image the original image.
-     * @param thumbnail the generated thumbnail data.
-     * @return a Mono of the saved thumbnail.
-     */
-    private Mono<Thumbnail> saveImageAndThumbnail(Image image, Thumbnail thumbnail) {
+    public Mono<Image> saveImage(Image image) {
         return imageRepository.save(image)
-                .flatMap(savedImage -> {
-                    thumbnail.setImageId(savedImage.getId());
-                    return thumbnailRepository.save(thumbnail);
-                })
-                .doOnSuccess(savedThumbnail -> log.info("Thumbnail saved successfully with ID: {}", savedThumbnail.getId()))
+                .doOnSuccess(savedImage -> log.info("Saved image with ID: {}", savedImage.getId()))
+                .doOnError(error -> log.error("Error saving image: {}", error.getMessage()));
+    }
+
+    public Flux<Thumbnail> saveThumbnailsForImage(Image savedImage) {
+        return thumbnailConverter.generateAllThumbnails(savedImage)
+                .doOnNext(thumbnail -> thumbnail.setImageId(savedImage.getId()))
+                .flatMap(thumbnailRepository::save)
+                .filter(thumbnail -> "small".equalsIgnoreCase(thumbnail.getType()))
+                .doOnNext(savedThumbnail -> log.info("Saved thumbnail with type: {} for image ID: {}", savedThumbnail.getType(), savedThumbnail.getImageId()))
                 .doOnError(error -> log.error("Error saving thumbnail: {}", error.getMessage()));
+    }
+
+    public Flux<Thumbnail> saveImageAndThumbnails(Image image) {
+        return saveImage(image)
+                .flatMapMany(this::saveThumbnailsForImage);
     }
 
     /**
@@ -77,8 +50,8 @@ public class ThumbnailService {
      *
      * @return a Flux of all thumbnails.
      */
-    public Flux<Thumbnail> getAllThumbnails() {
-        return thumbnailRepository.findAll()
+    public Flux<Thumbnail> getAllThumbnails(String type) {
+        return thumbnailRepository.findByType(type)
                 .publishOn(Schedulers.parallel());
     }
 

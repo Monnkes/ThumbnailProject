@@ -18,6 +18,7 @@ public class Message {
     private ResponseStatus responseStatus;
     private MessageType type;
     private List<IconDto> imagesData;
+    private String thumbnailType = null;
     private List<Long> ids = null;
     private String details = null;
 
@@ -29,14 +30,15 @@ public class Message {
     }
 
     public Message(ConnectionStatus connectionStatus, ResponseStatus responseStatus, List<IconDto> imagesData, MessageType type) {
-        this(connectionStatus, responseStatus, imagesData, type, null);
+        this(connectionStatus, responseStatus, imagesData, null, type, null);
     }
 
-    public Message(ConnectionStatus connectionStatus, ResponseStatus responseStatus, List<IconDto> imagesData, MessageType type, String details) {
+    public Message(ConnectionStatus connectionStatus, ResponseStatus responseStatus, List<IconDto> imagesData, String thumbnailType, MessageType type, String details) {
         this.responseStatus = responseStatus;
         this.connectionStatus = connectionStatus;
         this.type = type;
         this.imagesData = imagesData;
+        this.thumbnailType = thumbnailType;
         this.details = details;
     }
 

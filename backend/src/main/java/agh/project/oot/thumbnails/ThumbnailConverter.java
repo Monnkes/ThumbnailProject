@@ -4,7 +4,6 @@ import agh.project.oot.model.Image;
 import agh.project.oot.model.Thumbnail;
 import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -15,15 +14,7 @@ import java.io.ByteArrayOutputStream;
 @Component
 @Slf4j
 public class ThumbnailConverter {
-    private final int width;
-    private final int height;
-
-    public ThumbnailConverter(@Value("${thumbnail.width}") int width, @Value("${thumbnail.height}") int height) {
-        this.width = width;
-        this.height = height;
-    }
-
-    public Mono<Thumbnail> generateThumbnail(Image image) {
+    public Mono<Thumbnail> generateThumbnail(Image image, int width, int height, String type) {
         return Mono.fromCallable(() -> {
             ByteArrayInputStream inputStream = new ByteArrayInputStream(image.getData());
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -31,17 +22,20 @@ public class ThumbnailConverter {
             Thumbnails.of(inputStream)
                     .size(width, height)
                     .toOutputStream(outputStream);
-            return new Thumbnail(outputStream.toByteArray());
+
+            Thumbnail thumbnail = new Thumbnail();
+            thumbnail.setData(outputStream.toByteArray());
+            thumbnail.setType(type);
+
+            return thumbnail;
         }).onErrorResume(error -> Mono.error(new UnsupportedImageFormatException(error.getMessage())));
     }
 
-    public Flux<Thumbnail> generateThumbnails(Flux<Image> imageFlux) {
-        return imageFlux.flatMap(imageData ->
-                generateThumbnail(imageData)
-                        .doOnError(error -> {
-                            log.error("Error processing image: {}", error.getMessage());
-                        })
-                        .onErrorResume(error -> Mono.empty())
+    public Flux<Thumbnail> generateAllThumbnails(Image image) {
+        return Flux.concat(
+                generateThumbnail(image, 150, 150, "small"),
+                generateThumbnail(image, 300, 300, "medium"),
+                generateThumbnail(image, 600, 600, "big")
         );
     }
 }

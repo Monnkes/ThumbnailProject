@@ -8,6 +8,7 @@ CREATE TABLE images (
 CREATE TABLE thumbnails (
     id SERIAL PRIMARY KEY,
     data BYTEA NOT NULL,
-    image_id BIGINT UNIQUE,
+    type VARCHAR(10) NOT NULL,
+    image_id BIGINT NOT NULL,
     CONSTRAINT fk_image_id FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE
 );

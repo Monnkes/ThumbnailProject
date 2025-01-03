@@ -33,7 +33,9 @@ public class ThumbnailController extends AbstractWebSocketHandler {
         return messageService.parseMessage(textMessage.getPayload())
                 .flatMap(request -> switch (request.getType()) {
                     case UPLOAD_IMAGES -> messageService.handleUploadImages(session, request);
-                    case GET_ALL_THUMBNAILS -> messageService.handleGetAllThumbnails(session);
+                    case GET_ALL_SMALL_THUMBNAILS -> messageService.handleGetAllThumbnails(session, "small");
+                    case GET_ALL_MEDIUM_THUMBNAILS -> messageService.handleGetAllThumbnails(session, "medium");
+                    case GET_ALL_BIG_THUMBNAILS -> messageService.handleGetAllThumbnails(session, "big");
                     case GET_IMAGE -> messageService.handleGetImage(session, request);
                     case PONG -> messageService.sendPingWithDelay(session);
                     case GET_THUMBNAILS_RESPONSE, GET_IMAGE_RESPONSE, INFO_RESPONSE, PING ->
@@ -48,7 +50,7 @@ public class ThumbnailController extends AbstractWebSocketHandler {
 
         log.info("Connection established");
 
-        messageService.handleGetAllThumbnails(session)
+        messageService.handleGetAllThumbnails(session, "small")
                 .doOnSubscribe(subscription -> log.info("Starting to process thumbnails for session: {}", session))
                 .doOnSuccess(aVoid -> log.info("Thumbnails processing completed successfully for session: {}", session))
                 .doOnError(error -> log.error("Error occurred during thumbnails processing for session: {}", session, error))

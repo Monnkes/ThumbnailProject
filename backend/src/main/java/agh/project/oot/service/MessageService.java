@@ -99,8 +99,8 @@ public class MessageService {
                 .then();
     }
 
-    private Mono<Thumbnail> processSingleImage(WebSocketSession session, Image image) {
-        return thumbnailService.saveImageAndThumbnail(image)
+    private Flux<Thumbnail> processSingleImage(WebSocketSession session, Image image) {
+        return thumbnailService.saveImageAndThumbnails(image)
                 .flatMap(thumbnail ->
                         sendMessage(session, new Message(Collections.singletonList(IconDto.from(thumbnail)), MessageType.GET_THUMBNAILS_RESPONSE))
                                 .then(Mono.just(thumbnail))
@@ -112,9 +112,8 @@ public class MessageService {
                 });
     }
 
-
-    public Mono<Void> handleGetAllThumbnails(WebSocketSession session) {
-        return thumbnailService.getAllThumbnails()
+    public Mono<Void> handleGetAllThumbnails(WebSocketSession session, String type) {
+        return thumbnailService.getAllThumbnails(type)
                 .flatMap(thumbnail -> {
                     try {
                         return sendMessage(session, new Message(Collections.singletonList(IconDto.from(thumbnail)), MessageType.GET_THUMBNAILS_RESPONSE));
@@ -146,7 +145,7 @@ public class MessageService {
     }
 
     public Mono<Void> sendBadRequest(WebSocketSession session, String errorMessage, ResponseStatus responseStatus) {
-        return sendMessage(session, new Message(ConnectionStatus.CONNECTED, responseStatus, null, MessageType.INFO_RESPONSE, errorMessage));
+        return sendMessage(session, new Message(ConnectionStatus.CONNECTED, responseStatus, null, null, MessageType.INFO_RESPONSE, errorMessage));
     }
 
     public Mono<Void> sendErrorResponse(WebSocketSession session, Throwable error) {
@@ -158,7 +157,7 @@ public class MessageService {
     }
 
     public void afterConnectionEstablished(WebSocketSession session) {
-        sendMessage(session, new Message(ConnectionStatus.CONNECTED, ResponseStatus.OK, null, MessageType.INFO_RESPONSE, "Connection established"))
+        sendMessage(session, new Message(ConnectionStatus.CONNECTED, ResponseStatus.OK, null, null, MessageType.INFO_RESPONSE, "Connection established"))
                 .then(sendPingWithDelay(session))
                 .subscribe(
                         success -> log.info("Initial connection setup completed"),
