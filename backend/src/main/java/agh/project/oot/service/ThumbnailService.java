@@ -56,7 +56,6 @@ public class ThumbnailService {
     }
 
     public Mono<Thumbnail> save(Thumbnail thumbnail) {
-        System.err.println("Saving thumbnail: " + thumbnail.getType() + "ID: " + thumbnail.getImageId());
         return thumbnailRepository.save(thumbnail);
     }
 }

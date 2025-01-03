@@ -13,10 +13,18 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 
 import static agh.project.oot.model.ThumbnailType.*;
+import org.springframework.beans.factory.annotation.Value;
 
 @Component
 @Slf4j
 public class ThumbnailConverter {
+
+    @Value("${thumbnail.width}")
+    private int thumbnailWidth;
+
+    @Value("${thumbnail.height}")
+    private int thumbnailHeight;
+
     public Mono<Thumbnail> generateThumbnail(Image image, int width, int height, ThumbnailType type) {
         return Mono.fromCallable(() -> {
             ByteArrayInputStream inputStream = new ByteArrayInputStream(image.getData());
@@ -34,12 +42,11 @@ public class ThumbnailConverter {
         }).onErrorResume(error -> Mono.error(new UnsupportedImageFormatException(error.getMessage())));
     }
 
-    // TODO use sizes from properties
     public Flux<Thumbnail> generateAllThumbnails(Image image) {
         return Flux.concat(
-                generateThumbnail(image, 150, 150, SMALL),
-                generateThumbnail(image, 300, 300, MEDIUM),
-                generateThumbnail(image, 600, 600, BIG)
+                generateThumbnail(image, thumbnailWidth, thumbnailHeight, SMALL),
+                generateThumbnail(image, thumbnailWidth*2, thumbnailHeight*2, MEDIUM),
+                generateThumbnail(image, thumbnailWidth*4, thumbnailHeight*4, BIG)
         );
     }
 }

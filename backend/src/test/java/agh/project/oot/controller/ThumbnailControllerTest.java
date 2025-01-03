@@ -111,7 +111,7 @@ public class ThumbnailControllerTest {
                 ConnectionStatus.CONNECTED,
                 ResponseStatus.OK,
                 List.of(new IconDto(linux.getId(), linux.getData())),
-                null,
+                SMALL,
                 MessageType.GET_THUMBNAILS_RESPONSE,
                 null,
                 null
@@ -121,7 +121,7 @@ public class ThumbnailControllerTest {
                 ConnectionStatus.CONNECTED,
                 ResponseStatus.OK,
                 List.of(new IconDto(newYork.getId(), newYork.getData())),
-                null,
+                SMALL,
                 MessageType.GET_THUMBNAILS_RESPONSE,
                 null,
                 null
@@ -131,7 +131,7 @@ public class ThumbnailControllerTest {
                 ConnectionStatus.CONNECTED,
                 ResponseStatus.OK,
                 List.of(new IconDto(ufo.getId(), ufo.getData())),
-                null,
+                SMALL,
                 MessageType.GET_THUMBNAILS_RESPONSE,
                 null,
                 null
