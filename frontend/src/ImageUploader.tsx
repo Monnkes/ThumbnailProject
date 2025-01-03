@@ -2,11 +2,10 @@ import React, {useState} from 'react';
 import './styles/ImageUploader.css';
 import texts from './texts/texts.json';
 import frontendConfiguration from './frontendConfiguration.json';
-import MessageTypes from './MessageTypes';
+import MessageTypes from './utils/MessageTypes';
 
 interface ImageUploaderProps {
     onClose: () => void;
-    onUpload: (base64Images: ImageData[]) => void;
     socket: WebSocket | null;
 }
 
@@ -21,7 +20,7 @@ const calculateBase64Size = (base64: string): number => {
 };
 
 
-const ImageUploader: React.FC<ImageUploaderProps> = ({onClose, onUpload, socket}) => {
+const ImageUploader: React.FC<ImageUploaderProps> = ({onClose, socket}) => {
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -48,7 +47,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({onClose, onUpload, socket}
         Promise.all(promises)
             .then((results) => {
                 base64Images.push(...results);
-                const uploadedImages: ImageData[] = [];
 
                 if (socket && socket.readyState === WebSocket.OPEN) {
                     let currentBatch: ImageData[] = [];
@@ -73,7 +71,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({onClose, onUpload, socket}
                         }
                         else if (currentSize + imageSize > frontendConfiguration.max_batch_size) {
                             sendImagesBatch(currentBatch);
-                            uploadedImages.push(...currentBatch);
                             currentSize = 0;
                             currentBatch = [];
                             batchCount++;
@@ -89,12 +86,8 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({onClose, onUpload, socket}
                    }
                     if (currentBatch.length > 0 && batchCount < frontendConfiguration.max_batch_amount) {
                         sendImagesBatch(currentBatch);
-                        uploadedImages.push(...currentBatch);
                     }
                 }
-
-                onUpload(uploadedImages);
-
                 setSelectedFiles([]);
                 onClose();
             })

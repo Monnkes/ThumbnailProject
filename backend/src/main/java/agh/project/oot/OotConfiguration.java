@@ -1,27 +1,41 @@
 package agh.project.oot;
 
 import agh.project.oot.controller.ThumbnailController;
+import agh.project.oot.repository.ThumbnailRepository;
+import agh.project.oot.service.ImageService;
 import agh.project.oot.service.MessageService;
 import agh.project.oot.service.ThumbnailService;
+import agh.project.oot.thumbnails.ThumbnailConverter;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
-import org.springframework.web.socket.config.annotation.EnableWebSocket;
-import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
-import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.socket.server.standard.ServletServerContainerFactoryBean;
+import reactor.core.publisher.Sinks;
 
 @Configuration
-@EnableWebSocket
-public class OotConfiguration implements WebSocketConfigurer {
+@EnableScheduling
+public class OotConfiguration {
 
-    private final ThumbnailService thumbnailService;
+    @Bean
+    public ThumbnailController thumbnailController(@Lazy MessageService messageService, SessionManager sessionManager) {
+        return new ThumbnailController(messageService, sessionManager);
+    }
 
-    public OotConfiguration(ThumbnailService thumbnailService) {
-        this.thumbnailService = thumbnailService;
+    @Bean
+    public Sinks.Many<Long> imageSink() {
+        return Sinks.many().multicast().onBackpressureBuffer(1500);
+    }
+
+    @Bean
+    public ThumbnailService thumbnailService(ThumbnailConverter thumbnailConverter,
+                                             ImageService imageService,
+                                             ThumbnailRepository thumbnailRepository) {
+        return new ThumbnailService(thumbnailConverter, imageService, thumbnailRepository);
     }
 
     @Bean
@@ -32,19 +46,12 @@ public class OotConfiguration implements WebSocketConfigurer {
     }
 
     @Bean
-    public MessageService messageService(ObjectMapper objectMapper) {
-        return new MessageService(objectMapper, thumbnailService);
-    }
-
-    @Bean
-    public ThumbnailController thumbnailController(MessageService messageService) {
-        return new ThumbnailController(messageService);
-    }
-
-    @Override
-    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(thumbnailController(messageService(objectMapper())), "/upload-files")
-                .setAllowedOrigins("*");
+    public MessageService messageService(ObjectMapper objectMapper,
+                                         Sinks.Many<Long> imageSink,
+                                         ThumbnailService thumbnailService,
+                                         ImageService imageService,
+                                         SessionManager sessionManager) {
+        return new MessageService(objectMapper, imageSink, thumbnailService, imageService, sessionManager);
     }
 
     @Bean

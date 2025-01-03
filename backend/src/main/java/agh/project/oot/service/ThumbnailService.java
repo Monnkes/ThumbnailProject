@@ -2,10 +2,9 @@ package agh.project.oot.service;
 
 import agh.project.oot.model.Image;
 import agh.project.oot.model.Thumbnail;
-import agh.project.oot.repository.ImageRepository;
+import agh.project.oot.model.ThumbnailType;
 import agh.project.oot.repository.ThumbnailRepository;
 import agh.project.oot.thumbnails.ThumbnailConverter;
-import agh.project.oot.thumbnails.UnsupportedImageFormatException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -13,7 +12,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-import java.util.List;
 import java.util.NoSuchElementException;
 
 @Service
@@ -22,27 +20,16 @@ import java.util.NoSuchElementException;
 public class ThumbnailService {
 
     private final ThumbnailConverter thumbnailConverter;
-    private final ImageRepository imageRepository;
+    private final ImageService imageService;
     private final ThumbnailRepository thumbnailRepository;
-
-    public Mono<Image> saveImage(Image image) {
-        return imageRepository.save(image)
-                .doOnSuccess(savedImage -> log.info("Saved image with ID: {}", savedImage.getId()))
-                .doOnError(error -> log.error("Error saving image: {}", error.getMessage()));
-    }
 
     public Flux<Thumbnail> saveThumbnailsForImage(Image savedImage) {
         return thumbnailConverter.generateAllThumbnails(savedImage)
-                .doOnNext(thumbnail -> thumbnail.setImageId(savedImage.getId()))
-                .flatMap(thumbnailRepository::save)
-                .filter(thumbnail -> "small".equalsIgnoreCase(thumbnail.getType()))
-                .doOnNext(savedThumbnail -> log.info("Saved thumbnail with type: {} for image ID: {}", savedThumbnail.getType(), savedThumbnail.getImageId()))
-                .doOnError(error -> log.error("Error saving thumbnail: {}", error.getMessage()));
-    }
-
-    public Flux<Thumbnail> saveImageAndThumbnails(Image image) {
-        return saveImage(image)
-                .flatMapMany(this::saveThumbnailsForImage);
+                .flatMapSequential(thumbnail -> {
+                            thumbnail.setImageId(savedImage.getId());
+                            return this.save(thumbnail);
+                        }
+                );
     }
 
     /**
@@ -50,8 +37,8 @@ public class ThumbnailService {
      *
      * @return a Flux of all thumbnails.
      */
-    public Flux<Thumbnail> getAllThumbnails(String type) {
-        return thumbnailRepository.findByType(type)
+    public Flux<Thumbnail> getAllThumbnailsByType(ThumbnailType type) {
+        return thumbnailRepository.findByType(String.valueOf(type))
                 .publishOn(Schedulers.parallel());
     }
 
@@ -63,8 +50,13 @@ public class ThumbnailService {
      */
     public Mono<Image> getImageByThumbnailId(Long thumbnailId) {
         return thumbnailRepository.findById(thumbnailId)
-                .flatMap(thumbnail -> imageRepository.findById(thumbnail.getImageId())
+                .flatMap(thumbnail -> imageService.findById(thumbnail.getImageId())
                         .switchIfEmpty(Mono.error(new IllegalArgumentException("Image with ID " + thumbnail.getImageId() + " not found"))))
                 .switchIfEmpty(Mono.error(new NoSuchElementException("Thumbnail with ID " + thumbnailId + " not found")));
+    }
+
+    public Mono<Thumbnail> save(Thumbnail thumbnail) {
+        System.err.println("Saving thumbnail: " + thumbnail.getType() + "ID: " + thumbnail.getImageId());
+        return thumbnailRepository.save(thumbnail);
     }
 }

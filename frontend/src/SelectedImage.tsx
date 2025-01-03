@@ -1,6 +1,6 @@
 import React, {Dispatch, SetStateAction, useEffect} from 'react';
 import './styles/SelectedImage.css';
-import MessageTypes from "./MessageTypes";
+import MessageTypes from "./utils/MessageTypes";
 
 interface SelectedImageProps {
     imageData: string;

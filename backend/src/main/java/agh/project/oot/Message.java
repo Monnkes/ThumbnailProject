@@ -1,6 +1,8 @@
 package agh.project.oot;
 
 import agh.project.oot.model.IconDto;
+import agh.project.oot.model.Thumbnail;
+import agh.project.oot.model.ThumbnailType;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -17,29 +19,37 @@ public class Message {
     private ConnectionStatus connectionStatus;
     private ResponseStatus responseStatus;
     private MessageType type;
-    private List<IconDto> imagesData;
-    private String thumbnailType = null;
     private List<Long> ids = null;
     private String details = null;
+    private List<IconDto> imagesData;
+    private ThumbnailType thumbnailType = null;
+    private Integer thumbnailsNumber = null;
 
     public Message() {
     }
 
-    public Message(List<IconDto> imagesData, MessageType type) {
-        this(ConnectionStatus.CONNECTED, ResponseStatus.OK, imagesData, type);
+    public Message(List<IconDto> imagesData, MessageType type, ThumbnailType thumbnailType) {
+        this(ConnectionStatus.CONNECTED, ResponseStatus.OK, imagesData, thumbnailType, type);
     }
 
-    public Message(ConnectionStatus connectionStatus, ResponseStatus responseStatus, List<IconDto> imagesData, MessageType type) {
-        this(connectionStatus, responseStatus, imagesData, null, type, null);
+    public Message(MessageType type, Integer thumbnailsNumber) {
+        this(ConnectionStatus.CONNECTED, ResponseStatus.OK, null, null, type, null, thumbnailsNumber);
     }
 
-    public Message(ConnectionStatus connectionStatus, ResponseStatus responseStatus, List<IconDto> imagesData, String thumbnailType, MessageType type, String details) {
+    public Message(ConnectionStatus connectionStatus, ResponseStatus responseStatus, List<IconDto> imagesData,
+                   ThumbnailType thumbnailType, MessageType type) {
+        this(connectionStatus, responseStatus, imagesData, thumbnailType, type, null, null);
+    }
+
+    public Message(ConnectionStatus connectionStatus, ResponseStatus responseStatus, List<IconDto> imagesData,
+                   ThumbnailType thumbnailType, MessageType type, String details, Integer thumbnailsNumber) {
         this.responseStatus = responseStatus;
         this.connectionStatus = connectionStatus;
         this.type = type;
         this.imagesData = imagesData;
         this.thumbnailType = thumbnailType;
         this.details = details;
+        this.thumbnailsNumber = thumbnailsNumber;
     }
 
     /**

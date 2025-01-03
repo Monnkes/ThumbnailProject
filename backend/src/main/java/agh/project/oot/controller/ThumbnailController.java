@@ -1,9 +1,12 @@
 package agh.project.oot.controller;
 
 import agh.project.oot.ResponseStatus;
+import agh.project.oot.SessionManager;
+import agh.project.oot.model.ThumbnailType;
 import agh.project.oot.service.MessageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -12,11 +15,15 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.AbstractWebSocketHandler;
 import reactor.core.publisher.Mono;
 
+import static agh.project.oot.model.ThumbnailType.*;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class ThumbnailController extends AbstractWebSocketHandler {
+    @Lazy
     private final MessageService messageService;
+    private final SessionManager sessionManager;
 
     @Override
     public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) {
@@ -32,10 +39,10 @@ public class ThumbnailController extends AbstractWebSocketHandler {
     private Mono<Void> processMessage(WebSocketSession session, TextMessage textMessage) {
         return messageService.parseMessage(textMessage.getPayload())
                 .flatMap(request -> switch (request.getType()) {
-                    case UPLOAD_IMAGES -> messageService.handleUploadImages(session, request);
-                    case GET_ALL_SMALL_THUMBNAILS -> messageService.handleGetAllThumbnails(session, "small");
-                    case GET_ALL_MEDIUM_THUMBNAILS -> messageService.handleGetAllThumbnails(session, "medium");
-                    case GET_ALL_BIG_THUMBNAILS -> messageService.handleGetAllThumbnails(session, "big");
+                    case UPLOAD_IMAGES -> messageService.handleUploadImages(request);
+                    case GET_ALL_SMALL_THUMBNAILS -> setThumbnailTypeAndResponse(session, SMALL);
+                    case GET_ALL_MEDIUM_THUMBNAILS -> setThumbnailTypeAndResponse(session, MEDIUM);
+                    case GET_ALL_BIG_THUMBNAILS -> setThumbnailTypeAndResponse(session, BIG);
                     case GET_IMAGE -> messageService.handleGetImage(session, request);
                     case PONG -> messageService.sendPingWithDelay(session);
                     case GET_THUMBNAILS_RESPONSE, GET_IMAGE_RESPONSE, INFO_RESPONSE, PING ->
@@ -44,13 +51,22 @@ public class ThumbnailController extends AbstractWebSocketHandler {
                 .onErrorResume(error -> messageService.sendErrorResponse(session, error));
     }
 
+    private Mono<Void> setThumbnailTypeAndResponse(WebSocketSession session, ThumbnailType type) {
+        sessionManager.getSessions().computeIfPresent(session.getId(), (key, sessionData) -> {
+            sessionData.setThumbnailType(type);
+            return sessionData;
+        });
+        return messageService.handleGetAllThumbnails(session, type);
+    }
+
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         messageService.afterConnectionEstablished(session);
+        sessionManager.addSession(session, SMALL);
 
-        log.info("Connection established");
+        log.info("Connection established; session id:{}", session.getId());
 
-        messageService.handleGetAllThumbnails(session, "small")
+        messageService.handleGetAllThumbnails(session, SMALL)
                 .doOnSubscribe(subscription -> log.info("Starting to process thumbnails for session: {}", session))
                 .doOnSuccess(aVoid -> log.info("Thumbnails processing completed successfully for session: {}", session))
                 .doOnError(error -> log.error("Error occurred during thumbnails processing for session: {}", session, error))
@@ -65,6 +81,7 @@ public class ThumbnailController extends AbstractWebSocketHandler {
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
         log.info("WebSocket connection closed. Session ID: {}, Status: {}", session.getId(), status);
+        sessionManager.remove(session);
         super.afterConnectionClosed(session, status);
     }
 }
