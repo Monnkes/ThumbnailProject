@@ -6,7 +6,7 @@ import './styles/App.css';
 import configuration from './frontendConfiguration.json';
 import MessageTypes from './utils/MessageTypes';
 import ResponseStatusTypes from './utils/ResponseStatusTypes';
-import ThumbnailType from "./utils/ThumbnailType";
+import {ThumbnailType} from "./utils/ThumbnailProperties";
 
 interface ImageData {
     data: string;
@@ -23,7 +23,7 @@ function App() {
     const [originalImage, setOriginalImage] = useState<ImageData>(createDefaultImageData);
     const [isUploaderOpen, setIsUploaderOpen] = useState<boolean>(false);
     const [socket, setSocket] = useState<WebSocket | null>(null);
-    const thumbnailSizeRef = useRef<ThumbnailType>(ThumbnailType.SMALL);
+    const thumbnailTypeRef = useRef<ThumbnailType>(ThumbnailType.SMALL);
     const numberOfThumbnailsRef = useRef<number>(0);
     const imagesRef = useRef<ImageData[]>([]);
 
@@ -70,7 +70,7 @@ function App() {
             }
 
             if (data.type === MessageTypes.GET_THUMBNAILS_RESPONSE && data.imagesData) {
-                if (data.thumbnailType === thumbnailSizeRef.current) {
+                if (data.thumbnailType === thumbnailTypeRef.current) {
                     addThumbnails(
                         data.imagesData.map((thumbnail: ImageData) => ({
                             id: thumbnail.id,
@@ -81,6 +81,7 @@ function App() {
             }
         };
 
+        // TODO Add refreshing page after lost connection
         ws.onclose = () => {
             console.log('Connection closed');
         };
@@ -102,11 +103,11 @@ function App() {
     const fetchThumbnails = (type: ThumbnailType) => {
         setImages([]);
         numberOfThumbnailsRef.current = 0;
-        console.log(`New thumbnails type: ${thumbnailSizeRef.current}`)
+        console.log(`New thumbnails type: ${thumbnailTypeRef.current}`)
         if (socket && socket.readyState === WebSocket.OPEN) {
             const message = {
                 type: `GET_ALL_${type}_THUMBNAILS`,
-                thumbnailType: thumbnailSizeRef.current,
+                thumbnailType: thumbnailTypeRef.current,
             };
             console.log('Sending message to server:', message);
             socket.send(JSON.stringify(message));
@@ -139,25 +140,25 @@ function App() {
                     </button>
                     <div className="thumbnail-buttons">
                         <button
-                            className={`button ${thumbnailSizeRef.current === ThumbnailType.SMALL ? 'active' : ''}`}
+                            className={`button ${thumbnailTypeRef.current === ThumbnailType.SMALL ? 'active' : ''}`}
                             onClick={() => {
-                                thumbnailSizeRef.current = ThumbnailType.SMALL;
+                                thumbnailTypeRef.current = ThumbnailType.SMALL;
                                 fetchThumbnails(ThumbnailType.SMALL);
                             }}
                         >{texts.small}
                         </button>
                         <button
-                            className={`button ${thumbnailSizeRef.current === ThumbnailType.MEDIUM ? 'active' : ''}`}
+                            className={`button ${thumbnailTypeRef.current === ThumbnailType.MEDIUM ? 'active' : ''}`}
                             onClick={() => {
-                                thumbnailSizeRef.current = ThumbnailType.MEDIUM;
+                                thumbnailTypeRef.current = ThumbnailType.MEDIUM;
                                 fetchThumbnails(ThumbnailType.MEDIUM);
                             }}
                         >{texts.medium}
                         </button>
                         <button
-                            className={`button ${thumbnailSizeRef.current === ThumbnailType.BIG ? 'active' : ''}`}
+                            className={`button ${thumbnailTypeRef.current === ThumbnailType.BIG ? 'active' : ''}`}
                             onClick={() => {
-                                thumbnailSizeRef.current = ThumbnailType.BIG;
+                                thumbnailTypeRef.current = ThumbnailType.BIG;
                                 fetchThumbnails(ThumbnailType.BIG);
                             }}
                         >{texts.big}
@@ -172,7 +173,13 @@ function App() {
                     socket={socket}
                 />
             )}
-            <ImageGallery images={images} originalImage={originalImage} socket={socket} setOriginalImage={setOriginalImage} />
+            <ImageGallery
+                images={images}
+                originalImage={originalImage}
+                socket={socket}
+                setOriginalImage={setOriginalImage}
+                thumbnailTypeRef={thumbnailTypeRef}
+            />
         </div>
     );
 }

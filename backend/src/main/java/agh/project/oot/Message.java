@@ -15,6 +15,7 @@ import java.util.List;
 @Setter
 @ToString
 @EqualsAndHashCode
+// TODO [IMPORTANT] Refactor this class, maybe any interface and @nested annotation
 public class Message {
     private ConnectionStatus connectionStatus;
     private ResponseStatus responseStatus;

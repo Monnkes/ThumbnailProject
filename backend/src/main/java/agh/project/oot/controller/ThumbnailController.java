@@ -59,6 +59,7 @@ public class ThumbnailController extends AbstractWebSocketHandler {
         return messageService.handleGetAllThumbnails(session, type);
     }
 
+    // TODO Add loading thumbnail per type during initial procedure
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         messageService.afterConnectionEstablished(session);

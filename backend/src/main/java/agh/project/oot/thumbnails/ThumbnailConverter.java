@@ -42,6 +42,7 @@ public class ThumbnailConverter {
         }).onErrorResume(error -> Mono.error(new UnsupportedImageFormatException(error.getMessage())));
     }
 
+    // TODO Add factors to application properties
     public Flux<Thumbnail> generateAllThumbnails(Image image) {
         return Flux.concat(
                 generateThumbnail(image, thumbnailWidth, thumbnailHeight, SMALL),
