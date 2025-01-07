@@ -162,4 +162,6 @@ public class ThumbnailControllerTest {
                         .rowsUpdated()
                         .then());
     }
+
+    //TODO Add test to check properly handling UnsupportedMediaType
 }

@@ -53,12 +53,18 @@ public class MessageService {
     public void listenForNewImages() {
         imageSink.asFlux()
                 .flatMap(image -> imageService.findById(image)
-                    .flatMapMany(thumbnailService::saveThumbnailsForImage)
-                    .flatMap(this::sendGeneratedThumbnail)
+                        .flatMapMany(thumbnailService::saveThumbnailsForImage)
+                        .flatMap(this::sendGeneratedThumbnail)
                 )
+                .onErrorContinue((error, item) -> {
+                    log.error("Error processing image: {}", error.getMessage());
+                    sessionManager.getSessions().values().forEach(session ->
+                            sendErrorResponse(session.getSession(), error).subscribe()
+                    );
+                })
                 .subscribe(
                         success -> log.info("Image processing completed successfully"),
-                        error -> log.error("Unhandled error during image processing", error)
+                        error -> log.error("Unhandled error during image processing: {}", error.getMessage())
                 );
     }
 
@@ -171,7 +177,6 @@ public class MessageService {
     }
 
     public Mono<Void> sendErrorResponse(WebSocketSession session, Throwable error) {
-        log.error("Error processing message {}", error.getMessage());
         if (error.getClass() == UnsupportedImageFormatException.class || error.getClass() == UnsupportedFormatException.class) {
             return sendBadRequest(session, "Internal error: " + error.getMessage(), ResponseStatus.UNSUPPORTED_MEDIA_TYPE);
         }
