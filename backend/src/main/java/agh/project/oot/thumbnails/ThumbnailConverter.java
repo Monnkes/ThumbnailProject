@@ -3,6 +3,7 @@ package agh.project.oot.thumbnails;
 import agh.project.oot.model.Image;
 import agh.project.oot.model.Thumbnail;
 import agh.project.oot.model.ThumbnailType;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.stereotype.Component;
@@ -45,10 +46,9 @@ public class ThumbnailConverter {
             thumbnail.setType(type);
 
             return thumbnail;
-        }).onErrorResume(error -> Mono.error(new UnsupportedImageFormatException(error.getMessage())));
+        }).onErrorResume(error -> Mono.error(new UnsupportedImageFormatException(error.getMessage(), image.getId())));
     }
 
-    // TODO Add factors to application properties
     public Flux<Thumbnail> generateAllThumbnails(Image image) {
         return Flux.concat(
                 generateThumbnail(image, thumbnailWidth, thumbnailHeight, SMALL),

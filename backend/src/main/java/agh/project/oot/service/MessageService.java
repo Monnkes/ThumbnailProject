@@ -18,7 +18,6 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
 import reactor.util.retry.RetryBackoffSpec;
@@ -56,16 +55,36 @@ public class MessageService {
                         .flatMapMany(thumbnailService::saveThumbnailsForImage)
                         .flatMap(this::sendGeneratedThumbnail)
                 )
-                .onErrorContinue((error, item) -> {
-                    log.error("Error processing image: {}", error.getMessage());
-                    sessionManager.getSessions().values().forEach(session ->
-                            sendErrorResponse(session.getSession(), error).subscribe()
-                    );
-                })
+                .publishOn(Schedulers.boundedElastic())
+                .onErrorContinue((error, item) -> handleException(error))
                 .subscribe(
                         success -> log.info("Image processing completed successfully"),
                         error -> log.error("Unhandled error during image processing: {}", error.getMessage())
                 );
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public Mono<Void> processAndNotifyMissingThumbnails() {
+        log.info("Processing and notifying about missing thumbnails...");
+
+        return thumbnailService.generateMissingThumbnails()
+                .flatMap(this::sendGeneratedThumbnail)
+                .then()
+                .doOnSuccess(unused -> log.info("Finished notifying clients about all missing thumbnails."))
+                .onErrorContinue((error, item) -> handleException(error));
+    }
+
+    private void handleException(Throwable error) {
+        log.error("Error processing image: {}", error.getMessage());
+        sessionManager.getSessions().values().forEach(session ->
+                sendErrorResponse(session.getSession(), error).subscribe()
+        );
+        if (error instanceof UnsupportedImageFormatException) {
+            imageService.removeById(((UnsupportedImageFormatException) error).getId()).subscribe(
+                    success -> log.info("Image processing completed successfully"),
+                    err -> log.error("Unhandled error during image processing: {}", error.getMessage())
+            );;
+        }
     }
 
     public Mono<Void> sendGeneratedThumbnail(Thumbnail thumbnail) {

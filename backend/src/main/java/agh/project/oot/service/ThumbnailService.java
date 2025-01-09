@@ -13,6 +13,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.util.NoSuchElementException;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +23,24 @@ public class ThumbnailService {
     private final ThumbnailConverter thumbnailConverter;
     private final ImageService imageService;
     private final ThumbnailRepository thumbnailRepository;
+
+    public Flux<Thumbnail> generateMissingThumbnails() {
+        log.info("Generating missing thumbnails...");
+
+        return imageService.findAllImages()
+                .flatMap(this::generateMissingThumbnailsForImage);
+    }
+
+    private Flux<Thumbnail> generateMissingThumbnailsForImage(Image image) {
+        return Flux.fromStream(Stream.of(ThumbnailType.SMALL, ThumbnailType.MEDIUM, ThumbnailType.BIG))
+                .flatMap(type -> thumbnailRepository.findByImageIdAndType(image.getId(), type)
+                        .switchIfEmpty(thumbnailConverter.generateThumbnail(image, type.getWidth(), type.getHeight(), type)
+                                .flatMap(thumbnail -> {
+                                    thumbnail.setImageId(image.getId());
+                                    return this.save(thumbnail);
+                                })));
+    }
+
 
     public Flux<Thumbnail> saveThumbnailsForImage(Image savedImage) {
         return thumbnailConverter.generateAllThumbnails(savedImage)

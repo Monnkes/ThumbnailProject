@@ -6,6 +6,7 @@ import agh.project.oot.repository.ImageRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
@@ -31,5 +32,15 @@ public class ImageService {
     public Mono<Image> findById(Long id) {
         return imageRepository.findById(id)
                 .doOnError(error -> log.error("Error finding image by id: {}. [{}]", id, error.getMessage()));
+    }
+
+    public Flux<Image> findAllImages() {
+        return imageRepository.findAll()
+                .doOnError(error -> log.error("Error retrieving images from the database", error));
+    }
+
+    public Mono<Void> removeById(Long id) {
+        return imageRepository.deleteById(id)
+                .doOnError(error -> log.error("Error removing image from database", error));
     }
 }
