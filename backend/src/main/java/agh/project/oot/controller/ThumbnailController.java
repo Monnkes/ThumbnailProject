@@ -1,7 +1,7 @@
 package agh.project.oot.controller;
 
 import agh.project.oot.ResponseStatus;
-import agh.project.oot.SessionManager;
+import agh.project.oot.SessionRepository;
 import agh.project.oot.model.ThumbnailType;
 import agh.project.oot.service.MessageService;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +23,7 @@ import static agh.project.oot.model.ThumbnailType.*;
 public class ThumbnailController extends AbstractWebSocketHandler {
     @Lazy
     private final MessageService messageService;
-    private final SessionManager sessionManager;
+    private final SessionRepository sessionManager;
 
     @Override
     public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) {

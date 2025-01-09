@@ -113,7 +113,7 @@ class ThumbnailServiceTest {
         Thumbnail thumbnail2 = new Thumbnail(new byte[]{4, 5, 6}, 2L, ThumbnailType.SMALL);
 
         // When
-        when(thumbnailRepositoryMock.findByType(eq(ThumbnailType.SMALL.name())))
+        when(thumbnailRepositoryMock.findByType(eq(ThumbnailType.SMALL)))
                 .thenReturn(Flux.just(thumbnail1, thumbnail2));
 
         // Then
@@ -121,7 +121,7 @@ class ThumbnailServiceTest {
                 .expectNext(thumbnail1, thumbnail2)
                 .verifyComplete();
 
-        verify(thumbnailRepositoryMock, times(1)).findByType(eq(ThumbnailType.SMALL.name()));
+        verify(thumbnailRepositoryMock, times(1)).findByType(eq(ThumbnailType.SMALL));
     }
 
     /**
@@ -130,7 +130,7 @@ class ThumbnailServiceTest {
     @Test
     void shouldReturnEmptyWhenNoThumbnails() {
         // When
-        when(thumbnailRepositoryMock.findByType(eq(ThumbnailType.SMALL.name())))
+        when(thumbnailRepositoryMock.findByType(eq(ThumbnailType.SMALL)))
                 .thenReturn(Flux.empty());
 
         // Then
@@ -138,7 +138,7 @@ class ThumbnailServiceTest {
                 .expectNextCount(0)
                 .verifyComplete();
 
-        verify(thumbnailRepositoryMock).findByType(eq(ThumbnailType.SMALL.name()));
+        verify(thumbnailRepositoryMock).findByType(eq(ThumbnailType.SMALL));
     }
 
     /**

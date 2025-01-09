@@ -35,10 +35,10 @@ import static agh.project.oot.MessageType.*;
 @RequiredArgsConstructor
 public class MessageService {
     private final ObjectMapper objectMapper;
-    private final Sinks.Many<Long> imageSink;
+    private final ImageSink imageSink;
     private final ThumbnailService thumbnailService;
     private final ImageService imageService;
-    private final SessionManager sessionManager;
+    private final SessionRepository sessionManager;
 
     @Value("${controller.maxAttempts}")
     private int maxAttempts;
@@ -51,7 +51,7 @@ public class MessageService {
 
     @EventListener(ApplicationReadyEvent.class)
     public void listenForNewImages() {
-        imageSink.asFlux()
+        imageSink.getSink().asFlux()
                 .flatMap(image -> imageService.findById(image)
                         .flatMapMany(thumbnailService::saveThumbnailsForImage)
                         .flatMap(this::sendGeneratedThumbnail)

@@ -26,76 +26,106 @@ function App() {
     const thumbnailTypeRef = useRef<ThumbnailType>(ThumbnailType.SMALL);
     const numberOfThumbnailsRef = useRef<number>(0);
     const imagesRef = useRef<ImageData[]>([]);
+    const [connectionStatus, setConnectionStatus] = useState<string>('connecting');
+
 
     useEffect(() => {
         imagesRef.current = images;
     }, [images]);
 
     useEffect(() => {
-        const ws = new WebSocket('ws://localhost:8080/upload-files');
+        let reconnectInterval: NodeJS.Timeout | null = null;
 
-        ws.onopen = () => {
-            console.log('Connection established');
-        };
+        const connectWebSocket = () => {
+            const ws = new WebSocket('ws://localhost:8080/upload-files');
 
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            console.log('Message received:', data);
+            ws.onopen = () => {
+                console.log('Connection established');
+                setSocket(ws);
+                setConnectionStatus('connected'); 
 
-            if (data.type === MessageTypes.GET_IMAGE_RESPONSE && data.imagesData && data.imagesData[0]) {
-                setOriginalImage(data.imagesData[0]);
-            }
+                if (reconnectInterval) {
+                    clearInterval(reconnectInterval);
+                    reconnectInterval = null;
+                }
 
-            if (data.type === MessageTypes.PING) {
                 const message = {
-                    type: MessageTypes.PONG,
+                    type: `GET_ALL_${thumbnailTypeRef.current}_THUMBNAILS`,
+                    thumbnailType: thumbnailTypeRef.current,
                 };
+                console.log('Sending message to server on reconnect:', message);
                 ws.send(JSON.stringify(message));
-                console.log("Message send: ", message);
-            }
+            };
 
-            if (data.type === MessageTypes.INFO_RESPONSE) {
-                if(data.responseStatus === ResponseStatusTypes.UNSUPPORTED_MEDIA_TYPE){
-                    console.log('Unsupported media type received');
-                    setImages((prevImages) => {
-                        alert(`${texts.uploadFailure}`);
-                        return prevImages[prevImages.length - 1].id === 0
-                            ? prevImages.slice(0, prevImages.length - 1)
-                            : prevImages;
-                    });
-                }
-                if(data.thumbnailsNumber !== null && data.thumbnailsNumber > 0){
-                    addIcons(data.thumbnailsNumber);
-                }
-            }
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log('Message received:', data);
 
-            if (data.type === MessageTypes.GET_THUMBNAILS_RESPONSE && data.imagesData) {
-                if (data.thumbnailType === thumbnailTypeRef.current) {
-                    addThumbnails(
-                        data.imagesData.map((thumbnail: ImageData) => ({
-                            id: thumbnail.id,
-                            data: thumbnail.data,
-                        }))
-                    );
+                if (data.type === MessageTypes.GET_IMAGE_RESPONSE && data.imagesData && data.imagesData[0]) {
+                    setOriginalImage(data.imagesData[0]);
                 }
-            }
+
+                if (data.type === MessageTypes.PING) {
+                    const message = {
+                        type: MessageTypes.PONG,
+                    };
+                    ws.send(JSON.stringify(message));
+                    console.log('Message sent:', message);
+                }
+
+                if (data.type === MessageTypes.INFO_RESPONSE) {
+                    if (data.responseStatus === ResponseStatusTypes.UNSUPPORTED_MEDIA_TYPE) {
+                        console.log('Unsupported media type received');
+                        setImages((prevImages) => {
+                            alert(`${texts.uploadFailure}`);
+                            return prevImages[prevImages.length - 1].id === 0
+                                ? prevImages.slice(0, prevImages.length - 1)
+                                : prevImages;
+                        });
+                    }
+                    if (data.thumbnailsNumber !== null && data.thumbnailsNumber > 0) {
+                        addIcons(data.thumbnailsNumber);
+                    }
+                }
+
+                if (data.type === MessageTypes.GET_THUMBNAILS_RESPONSE && data.imagesData) {
+                    if (data.thumbnailType === thumbnailTypeRef.current) {
+                        addThumbnails(
+                            data.imagesData.map((thumbnail: ImageData) => ({
+                                id: thumbnail.id,
+                                data: thumbnail.data,
+                            }))
+                        );
+                    }
+                }
+            };
+
+            ws.onclose = () => {
+                console.log('Connection closed. Attempting to reconnect...');
+                setConnectionStatus('connecting');
+                if (!reconnectInterval) {
+                    reconnectInterval = setInterval(() => {
+                        connectWebSocket();
+                    }, configuration.reconnecting_interval);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('Connection error:', error);
+                setConnectionStatus('disconnected');
+                ws.close();
+            };
         };
 
-        // TODO Add refreshing page after lost connection
-        ws.onclose = () => {
-            console.log('Connection closed');
-        };
-
-        ws.onerror = (error) => {
-            console.error('Connection error:', error);
-        };
-
-        setSocket(ws);
+        connectWebSocket();
 
         return () => {
-            if (ws) {
+            if (reconnectInterval) {
+                clearInterval(reconnectInterval);
+            }
+            if (socket) {
                 console.log('Closing WebSocket connection');
-                ws.close();
+                socket.close();
             }
         };
     }, []);
@@ -115,17 +145,34 @@ function App() {
     };
 
     const addIcons = (thumbnailsNumber: number) => {
-        const loadingIcons = new Array(thumbnailsNumber).fill(createDefaultImageData());
-        setImages((prevImages) => [...prevImages, ...loadingIcons]);
+        setImages((prevImages) => {
+            const placeholderCount = prevImages.filter((image) => image.id === 0).length;
+
+            if (placeholderCount < thumbnailsNumber) {
+                const newPlaceholders = new Array(thumbnailsNumber - placeholderCount).fill(createDefaultImageData());
+                return [...prevImages, ...newPlaceholders];
+            }
+
+            return prevImages;
+        });
     };
 
     const addThumbnails = (thumbnails: ImageData[]) => {
-        setImages(prevImages => {
+        setImages((prevImages) => {
+            const existingIds = new Set(prevImages.map((image) => image.id));
+
             const updatedImages = [...prevImages];
-            for (let i = numberOfThumbnailsRef.current; i < numberOfThumbnailsRef.current + thumbnails.length; i++) {
-                updatedImages[i] = thumbnails[i - numberOfThumbnailsRef.current];
-            }
-            numberOfThumbnailsRef.current += thumbnails.length;
+            thumbnails.forEach((thumbnail, index) => {
+                if (!existingIds.has(thumbnail.id)) {
+                    const placeholderIndex = updatedImages.findIndex((image) => image.id === 0);
+                    if (placeholderIndex !== -1) {
+                        updatedImages[placeholderIndex] = thumbnail;
+                    } else {
+                        updatedImages.push(thumbnail);
+                    }
+                }
+            });
+
             return updatedImages;
         });
     };
@@ -166,6 +213,17 @@ function App() {
                     </div>
                 </div>
             </header>
+
+            {connectionStatus === 'connecting' && (
+                <div className="connection-status">
+                    <p>Connecting...</p>
+                </div>
+            )}
+            {connectionStatus === 'disconnected' && (
+                <div className="connection-status">
+                    <p>Connection lost. Retrying...</p>
+                </div>
+            )}
 
             {isUploaderOpen && (
                 <ImageUploader

@@ -38,7 +38,7 @@ public class ThumbnailService {
      * @return a Flux of all thumbnails.
      */
     public Flux<Thumbnail> getAllThumbnailsByType(ThumbnailType type) {
-        return thumbnailRepository.findByType(String.valueOf(type))
+        return thumbnailRepository.findByType(type)
                 .publishOn(Schedulers.parallel());
     }
 

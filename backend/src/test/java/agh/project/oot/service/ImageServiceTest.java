@@ -1,5 +1,6 @@
 package agh.project.oot.service;
 
+import agh.project.oot.ImageSink;
 import agh.project.oot.model.Image;
 import agh.project.oot.repository.ImageRepository;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,7 +25,7 @@ class ImageServiceTest {
     private ImageRepository imageRepository;
 
     @Mock
-    private Sinks.Many<Long> imageSink;
+    private ImageSink imageSink;
 
     @InjectMocks
     private ImageService imageService;
@@ -45,7 +46,7 @@ class ImageServiceTest {
 
         // Verify interactions
         verify(imageRepository).save(any(Image.class));
-        verify(imageSink).emitNext(image.getId(), Sinks.EmitFailureHandler.FAIL_FAST);
+        verify(imageSink.getSink()).emitNext(image.getId(), Sinks.EmitFailureHandler.FAIL_FAST);
     }
 
     @Test
@@ -65,7 +66,7 @@ class ImageServiceTest {
 
         // Verify interactions
         verify(imageRepository).save(any(Image.class));
-        verify(imageSink, Mockito.never()).emitNext(any(), any());
+        verify(imageSink.getSink(), Mockito.never()).emitNext(any(), any());
     }
 
     @Test

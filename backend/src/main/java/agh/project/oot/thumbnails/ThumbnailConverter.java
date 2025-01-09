@@ -25,6 +25,12 @@ public class ThumbnailConverter {
     @Value("${thumbnail.height}")
     private int thumbnailHeight;
 
+    @Value("${converter.mediumThumbnailScale}")
+    private int mediumThumbnailScale;
+
+    @Value("${converter.bigThumbnailScale}")
+    private int bigThumbnailScale;
+
     public Mono<Thumbnail> generateThumbnail(Image image, int width, int height, ThumbnailType type) {
         return Mono.fromCallable(() -> {
             ByteArrayInputStream inputStream = new ByteArrayInputStream(image.getData());
@@ -46,8 +52,8 @@ public class ThumbnailConverter {
     public Flux<Thumbnail> generateAllThumbnails(Image image) {
         return Flux.concat(
                 generateThumbnail(image, thumbnailWidth, thumbnailHeight, SMALL),
-                generateThumbnail(image, thumbnailWidth*2, thumbnailHeight*2, MEDIUM),
-                generateThumbnail(image, thumbnailWidth*4, thumbnailHeight*4, BIG)
+                generateThumbnail(image, thumbnailWidth * mediumThumbnailScale, thumbnailHeight * mediumThumbnailScale, MEDIUM),
+                generateThumbnail(image, thumbnailWidth * bigThumbnailScale, thumbnailHeight * bigThumbnailScale, BIG)
         );
     }
 }

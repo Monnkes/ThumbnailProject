@@ -1,5 +1,6 @@
 package agh.project.oot.service;
 
+import agh.project.oot.ImageSink;
 import agh.project.oot.model.Image;
 import agh.project.oot.repository.ImageRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,18 +15,15 @@ import reactor.core.scheduler.Schedulers;
 @Slf4j
 public class ImageService {
     private final ImageRepository imageRepository;
-    private final Sinks.Many<Long> imageSink;
+    private final ImageSink imageSink;
 
     public Mono<Image> saveAndNotifyThumbnail(Image image) {
         return imageRepository.save(image)
                 .publishOn(Schedulers.boundedElastic())
                 .doOnSuccess(image1 -> {
-                    Mono.defer(() -> {
                         synchronized (imageSink){
-                            imageSink.emitNext(image1.getId(), Sinks.EmitFailureHandler.FAIL_FAST);
+                            imageSink.getSink().emitNext(image1.getId(), Sinks.EmitFailureHandler.FAIL_FAST);
                         }
-                        return Mono.empty();
-                    }).subscribe();
                 })
                 .doOnError(error -> log.error("Error saving image with notification: {}", error.getMessage()));
     }

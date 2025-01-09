@@ -15,20 +15,19 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.socket.server.standard.ServletServerContainerFactoryBean;
-import reactor.core.publisher.Sinks;
 
 @Configuration
 @EnableScheduling
 public class OotConfiguration {
 
     @Bean
-    public ThumbnailController thumbnailController(@Lazy MessageService messageService, SessionManager sessionManager) {
+    public ThumbnailController thumbnailController(@Lazy MessageService messageService, SessionRepository sessionManager) {
         return new ThumbnailController(messageService, sessionManager);
     }
 
     @Bean
-    public Sinks.Many<Long> imageSink() {
-        return Sinks.many().multicast().onBackpressureBuffer(1500);
+    public ImageSink imageSink(@Value("${configuration.backpressureBuffer}") int buffer) {
+        return new ImageSink(buffer);
     }
 
     @Bean
@@ -47,11 +46,11 @@ public class OotConfiguration {
 
     @Bean
     public MessageService messageService(ObjectMapper objectMapper,
-                                         Sinks.Many<Long> imageSink,
+                                         ImageSink imageSink,
                                          ThumbnailService thumbnailService,
                                          ImageService imageService,
-                                         SessionManager sessionManager) {
-        return new MessageService(objectMapper, imageSink, thumbnailService, imageService, sessionManager);
+                                         SessionRepository sessionRepository) {
+        return new MessageService(objectMapper, imageSink, thumbnailService, imageService, sessionRepository);
     }
 
     @Bean

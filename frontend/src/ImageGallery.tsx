@@ -40,13 +40,13 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
     const getGridTemplateColumns = () => {
         switch (thumbnailTypeRef.current) {
             case ThumbnailType.SMALL:
-                return `repeat(auto-fill, minmax(${ThumbnailSize[ThumbnailType.SMALL].height}px, 1fr))`;
+                return `repeat(auto-fill, minmax(${ThumbnailSize[ThumbnailType.SMALL].height}, 1fr))`;
             case ThumbnailType.MEDIUM:
-                return `repeat(auto-fill, minmax(${ThumbnailSize[ThumbnailType.MEDIUM].height}px, 1fr))`;
+                return `repeat(auto-fill, minmax(${ThumbnailSize[ThumbnailType.MEDIUM].height}, 1fr))`;
             case ThumbnailType.BIG:
-                return `repeat(auto-fill, minmax(${ThumbnailSize[ThumbnailType.BIG].height}px, 1fr))`;
+                return `repeat(auto-fill, minmax(${ThumbnailSize[ThumbnailType.BIG].height}, 1fr))`;
             default:
-                return `repeat(auto-fill, minmax(${ThumbnailSize[ThumbnailType.SMALL].height}px, 1fr))`;
+                return `repeat(auto-fill, minmax(${ThumbnailSize[ThumbnailType.SMALL].height}, 1fr))`;
         }
     };
 
@@ -54,7 +54,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
         <div className="gallery" style={{ gridTemplateColumns: getGridTemplateColumns() }}>
             {images.map((base64Image) => (
                 <div
-                    key={base64Image.id}
+                    key={0}
                     className="image-container"
                     style={{
                         width: ThumbnailSize[thumbnailTypeRef.current].width,

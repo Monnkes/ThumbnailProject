@@ -54,3 +54,10 @@ body {
   align-items: center;
   gap: 20px;
 }
+
+.connection-status {
+  text-align: center;
+  margin-top: 10px;
+  color: #ff0000;
+  font-weight: bold;
+}
