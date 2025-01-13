@@ -1,8 +1,8 @@
 package agh.project.oot.controller;
 
 import agh.project.oot.ConnectionStatus;
-import agh.project.oot.Message;
-import agh.project.oot.MessageType;
+import agh.project.oot.OldMessage;
+import agh.project.oot.messages.MessageType;
 import agh.project.oot.ResponseStatus;
 import agh.project.oot.model.IconDto;
 import agh.project.oot.model.Thumbnail;
@@ -49,7 +49,7 @@ public class ThumbnailControllerTest {
     private int port;
 
     private String URL;
-    final List<Message> messagesList = new ArrayList<>();
+    final List<OldMessage> messagesList = new ArrayList<>();
     private TextWebSocketHandler handler;
     private volatile WebSocketSession testSession;
     private WebSocketClient client;
@@ -74,8 +74,8 @@ public class ThumbnailControllerTest {
 
             @Override
             protected void handleTextMessage(WebSocketSession session, TextMessage message) throws JsonProcessingException {
-                Message responseMessage = objectMapper.readValue(message.getPayload(), Message.class);
-                messagesList.add(responseMessage);
+                OldMessage responseOldMessage = objectMapper.readValue(message.getPayload(), OldMessage.class);
+                messagesList.add(responseOldMessage);
                 latch.countDown();
             }
         };
@@ -97,7 +97,7 @@ public class ThumbnailControllerTest {
         assertTrue(await, "Too few messages");
         assertThat(messagesList).hasSize(5);
 
-        assertThat(messagesList.getFirst()).isEqualTo(new Message(
+        assertThat(messagesList.getFirst()).isEqualTo(new OldMessage(
                 ConnectionStatus.CONNECTED,
                 ResponseStatus.OK,
                 null,
@@ -107,7 +107,7 @@ public class ThumbnailControllerTest {
                 null
         ));
 
-        assertThat(messagesList).contains(new Message(
+        assertThat(messagesList).contains(new OldMessage(
                 ConnectionStatus.CONNECTED,
                 ResponseStatus.OK,
                 List.of(IconDto.from(linux)),
@@ -117,7 +117,7 @@ public class ThumbnailControllerTest {
                 null
         ));
 
-        assertThat(messagesList).contains(new Message(
+        assertThat(messagesList).contains(new OldMessage(
                 ConnectionStatus.CONNECTED,
                 ResponseStatus.OK,
                 List.of(IconDto.from(newYork)),
@@ -127,7 +127,7 @@ public class ThumbnailControllerTest {
                 null
         ));
 
-        assertThat(messagesList).contains(new Message(
+        assertThat(messagesList).contains(new OldMessage(
                 ConnectionStatus.CONNECTED,
                 ResponseStatus.OK,
                 List.of(IconDto.from(ufo)),
@@ -137,7 +137,7 @@ public class ThumbnailControllerTest {
                 null
         ));
 
-        assertThat(messagesList).contains(new Message(
+        assertThat(messagesList).contains(new OldMessage(
                 ConnectionStatus.CONNECTED,
                 ResponseStatus.OK,
                 null,

@@ -14,7 +14,7 @@ public interface ThumbnailRepository extends ReactiveCrudRepository<Thumbnail, L
     Flux<Thumbnail> findByType(ThumbnailType type);
     Mono<Thumbnail> findByImageIdAndType(Long imageId, ThumbnailType type);
 
-    // TODO reb=place query by sth smarter
+    // TODO replace query by sth smarter
     @Modifying
     @Query("UPDATE thumbnails SET thumbnail_order = :thumbnailOrder WHERE id = :thumbnailId")
     Mono<Integer> updateThumbnailOrder(Long thumbnailId, Long thumbnailOrder);

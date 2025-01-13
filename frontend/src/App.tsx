@@ -52,7 +52,7 @@ function App() {
                 }
 
                 const message = {
-                    type: `GET_ALL_${thumbnailTypeRef.current}_THUMBNAILS`,
+                    type: `GET_THUMBNAILS`,
                     thumbnailType: thumbnailTypeRef.current,
                 };
                 console.log('Sending message to server on reconnect:', message);
@@ -63,11 +63,11 @@ function App() {
                 const data = JSON.parse(event.data);
                 console.log('Message received:', data);
 
-                if (data.type === MessageTypes.GET_IMAGE_RESPONSE && data.imagesData && data.imagesData[0]) {
+                if (data.messageType === MessageTypes.GET_IMAGE && data.imagesData && data.imagesData[0]) {
                     setOriginalImage(data.imagesData[0]);
                 }
 
-                if (data.type === MessageTypes.PING) {
+                if (data.messageType === MessageTypes.PING) {
                     const message = {
                         type: MessageTypes.PONG,
                     };
@@ -75,7 +75,7 @@ function App() {
                     console.log('Message sent:', message);
                 }
 
-                if (data.type === MessageTypes.INFO_RESPONSE) {
+                if (data.messageType === MessageTypes.INFO_RESPONSE) {
                     if (data.responseStatus === ResponseStatusTypes.UNSUPPORTED_MEDIA_TYPE) {
                         console.log('Unsupported media type received');
                         setImages((prevImages) => {
@@ -85,12 +85,15 @@ function App() {
                                 : prevImages;
                         });
                     }
+            }
+
+            if (data.messageType === MessageTypes.GET_PLACEHOLDERS_NUMBER) {
                     if (data.thumbnailsNumber !== null && data.thumbnailsNumber > 0) {
                         addIcons(data.thumbnailsNumber);
                     }
                 }
 
-            if (data.type === MessageTypes.GET_THUMBNAILS_RESPONSE && data.imagesData) {
+            if (data.messageType === MessageTypes.GET_THUMBNAILS && data.imagesData) {
                 if (data.thumbnailType === thumbnailTypeRef.current) {
                     addThumbnails(
                         data.imagesData.map((thumbnail: ImageData) => ({
@@ -139,7 +142,7 @@ function App() {
         console.log(`New thumbnails type: ${thumbnailTypeRef.current}`)
         if (socket && socket.readyState === WebSocket.OPEN) {
             const message = {
-                type: `GET_ALL_${type}_THUMBNAILS`,
+                type: `GET_THUMBNAILS`,
                 thumbnailType: thumbnailTypeRef.current,
             };
             console.log('Sending message to server:', message);

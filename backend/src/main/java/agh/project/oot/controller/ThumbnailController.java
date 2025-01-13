@@ -2,7 +2,7 @@ package agh.project.oot.controller;
 
 import agh.project.oot.ResponseStatus;
 import agh.project.oot.SessionRepository;
-import agh.project.oot.model.ThumbnailType;
+import agh.project.oot.messages.*;
 import agh.project.oot.service.MessageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,25 +38,25 @@ public class ThumbnailController extends AbstractWebSocketHandler {
 
     private Mono<Void> processMessage(WebSocketSession session, TextMessage textMessage) {
         return messageService.parseMessage(textMessage.getPayload())
-                .flatMap(request -> switch (request.getType()) {
-                    case UPLOAD_IMAGES -> messageService.handleUploadImages(request);
-                    case GET_ALL_SMALL_THUMBNAILS -> setThumbnailTypeAndResponse(session, SMALL);
-                    case GET_ALL_MEDIUM_THUMBNAILS -> setThumbnailTypeAndResponse(session, MEDIUM);
-                    case GET_ALL_BIG_THUMBNAILS -> setThumbnailTypeAndResponse(session, BIG);
-                    case GET_IMAGE -> messageService.handleGetImage(session, request);
-                    case PONG -> messageService.sendPingWithDelay(session);
-                    case GET_THUMBNAILS_RESPONSE, GET_IMAGE_RESPONSE, INFO_RESPONSE, PING ->
+                .flatMap(message -> switch (message) {
+                    case UploadImageMessage uploadImageMessage -> messageService.handleUploadImages(uploadImageMessage);
+                    case GetThumbnailsMessage getThumbnailsMessage -> setThumbnailTypeAndResponse(session, getThumbnailsMessage);
+                    case GetImageMessage getImageMessage -> messageService.handleGetImage(session, getImageMessage);
+                    case PingMessage pingMessage -> messageService.sendPingWithDelay(session, pingMessage);
+                    case InfoResponseMessage infoResponseMessage ->
                             messageService.sendBadRequest(session, "Unknown message type", ResponseStatus.UNSUPPORTED_MEDIA_TYPE);
+                    //Temporary
+                    default -> throw new IllegalStateException("Unexpected value: " + message);
                 })
                 .onErrorResume(error -> messageService.sendErrorResponse(session, error));
     }
 
-    private Mono<Void> setThumbnailTypeAndResponse(WebSocketSession session, ThumbnailType type) {
+    private Mono<Void> setThumbnailTypeAndResponse(WebSocketSession session, GetThumbnailsMessage message) {
         sessionManager.getSessions().computeIfPresent(session.getId(), (key, sessionData) -> {
-            sessionData.setThumbnailType(type);
+            sessionData.setThumbnailType(message.getThumbnailType());
             return sessionData;
         });
-        return messageService.handleGetAllThumbnails(session, type);
+        return messageService.handleGetAllThumbnails(session, message);
     }
 
     // TODO Add loading thumbnail per type during initial procedure
@@ -67,7 +67,8 @@ public class ThumbnailController extends AbstractWebSocketHandler {
 
         log.info("Connection established; session id:{}", session.getId());
 
-        messageService.handleGetAllThumbnails(session, SMALL)
+        // TODO Remove or refactor (this option is better, add initial setup and properly thumbnails by type)
+        messageService.handleGetAllThumbnails(session, new GetThumbnailsMessage(SMALL))
                 .doOnSubscribe(subscription -> log.info("Starting to process thumbnails for session: {}", session))
                 .doOnSuccess(aVoid -> log.info("Thumbnails processing completed successfully for session: {}", session))
                 .doOnError(error -> log.error("Error occurred during thumbnails processing for session: {}", session, error))

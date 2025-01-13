@@ -54,4 +54,8 @@ public class ImageService {
     public Mono<Long> getImageOrderById(Long id) {
         return findById(id).map(Image::getImageOrder);
     }
+
+    public Mono<Integer> getTopImageOrder() {
+        return imageRepository.getTopByOrderByImageOrderDesc();
+    }
 }

@@ -84,7 +84,7 @@ To run the application using Docker, follow these steps:
 - **[12-12-2024]** Upgrade simple UI
 - **[12-12-2024]** Implement database repository and models
 - **[12-12-2024]** Added database initialization to docker
-- **[12-12-2024]** New message types handling
+- **[12-12-2024]** New oldMessage types handling
 - **[12-12-2024]** Init readme
 - **[12-12-2024]** Original image on click fixing
 - **[12-12-2024]** Final implementation
