@@ -1,7 +1,6 @@
 package agh.project.oot;
 
 import agh.project.oot.model.IconDto;
-import agh.project.oot.model.Thumbnail;
 import agh.project.oot.model.ThumbnailType;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -15,7 +14,7 @@ import java.util.List;
 @Setter
 @ToString
 @EqualsAndHashCode
-// TODO [IMPORTANT] Refactor this class, maybe any interface and @nested annotation
+// TODO [IMPORTANT] Refactor this class, maybe any interface
 public class Message {
     private ConnectionStatus connectionStatus;
     private ResponseStatus responseStatus;

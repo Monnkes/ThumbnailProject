@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 import java.util.NoSuchElementException;
 import java.util.stream.Stream;
@@ -24,13 +26,16 @@ public class ThumbnailService {
     private final ImageService imageService;
     private final ThumbnailRepository thumbnailRepository;
 
-    public Flux<Thumbnail> generateMissingThumbnails() {
+    public Flux<Tuple2<Image, Thumbnail>> generateMissingThumbnails() {
         log.info("Generating missing thumbnails...");
 
         return imageService.findAllImages()
-                .flatMap(this::generateMissingThumbnailsForImage);
+                .flatMap(image -> generateMissingThumbnailsForImage(image)
+                        .map(thumbnail -> Tuples.of(image, thumbnail))
+                );
     }
 
+    // TODO Transfer this logic to Database
     private Flux<Thumbnail> generateMissingThumbnailsForImage(Image image) {
         return Flux.fromStream(Stream.of(ThumbnailType.SMALL, ThumbnailType.MEDIUM, ThumbnailType.BIG))
                 .flatMap(type -> thumbnailRepository.findByImageIdAndType(image.getId(), type)
@@ -76,5 +81,12 @@ public class ThumbnailService {
 
     public Mono<Thumbnail> save(Thumbnail thumbnail) {
         return thumbnailRepository.save(thumbnail);
+    }
+
+    public Mono<Boolean> updateThumbnailOrder(Thumbnail thumbnail, long thumbnailOrder) {
+        thumbnail.setThumbnailOrder(thumbnailOrder);
+        return thumbnailRepository.updateThumbnailOrder(thumbnail.getId(), thumbnailOrder)
+                .map(rowsUpdated -> rowsUpdated > 0)
+                .doOnError(error -> log.error("Error updating thumbnail order for thumbnailId: {}", thumbnail.getId(), error));
     }
 }

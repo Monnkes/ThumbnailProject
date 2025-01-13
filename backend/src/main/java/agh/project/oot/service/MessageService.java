@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static agh.project.oot.MessageType.*;
 
@@ -37,6 +38,7 @@ public class MessageService {
     private final ImageSink imageSink;
     private final ThumbnailService thumbnailService;
     private final ImageService imageService;
+    private final AtomicLong currentImageOrder = new AtomicLong(-1);
     private final SessionRepository sessionManager;
 
     @Value("${controller.maxAttempts}")
@@ -51,9 +53,9 @@ public class MessageService {
     @EventListener(ApplicationReadyEvent.class)
     public void listenForNewImages() {
         imageSink.getSink().asFlux()
-                .flatMap(image -> imageService.findById(image)
-                        .flatMapMany(thumbnailService::saveThumbnailsForImage)
-                        .flatMap(this::sendGeneratedThumbnail)
+                .flatMap(imageService::findById)
+                .flatMap(image -> thumbnailService.saveThumbnailsForImage(image)
+                        .flatMap(thumbnail -> processImage(thumbnail, image))
                 )
                 .publishOn(Schedulers.boundedElastic())
                 .onErrorContinue((error, item) -> handleException(error))
@@ -63,12 +65,13 @@ public class MessageService {
                 );
     }
 
+    // TODO Please refactor it
     @EventListener(ApplicationReadyEvent.class)
     public Mono<Void> processAndNotifyMissingThumbnails() {
         log.info("Processing and notifying about missing thumbnails...");
 
         return thumbnailService.generateMissingThumbnails()
-                .flatMap(this::sendGeneratedThumbnail)
+                .flatMap(tuple -> processImage(tuple.getT2(), tuple.getT1()))
                 .then()
                 .doOnSuccess(unused -> log.info("Finished notifying clients about all missing thumbnails."))
                 .onErrorContinue((error, item) -> handleException(error));
@@ -83,8 +86,27 @@ public class MessageService {
             imageService.removeById(((UnsupportedImageFormatException) error).getId()).subscribe(
                     success -> log.info("Image processing completed successfully"),
                     err -> log.error("Unhandled error during image processing: {}", error.getMessage())
-            );;
+            );
         }
+    }
+
+    private Mono<Void> processImage(Thumbnail thumbnail, Image image) {
+        return getImageOrder(image)
+                .switchIfEmpty(Mono.defer(() -> Mono.fromCallable(currentImageOrder::incrementAndGet)
+                        .flatMap(upgradedImageOrder -> imageService.updateImageOrder(image, upgradedImageOrder)
+                                .doOnError(e -> log.error("Error updating image order: {}", e.getMessage()))
+                                .thenReturn(upgradedImageOrder)
+                        )))
+                .flatMap(imageOrder ->
+                        thumbnailService.updateThumbnailOrder(thumbnail, imageOrder)
+                                .doOnError(e -> log.error("Error updating thumbnail order: {}", e.getMessage()))
+                                .then(sendGeneratedThumbnail(thumbnail))
+                )
+                .then();
+    }
+
+    public Mono<Long> getImageOrder(Image image) {
+        return Mono.justOrEmpty(image.getImageOrder());
     }
 
     public Mono<Void> sendGeneratedThumbnail(Thumbnail thumbnail) {
@@ -93,8 +115,8 @@ public class MessageService {
                 .filter(sessionData -> sessionData.getThumbnailType().equals(thumbnailType))
                 .map(SessionData::getSession)
                 .flatMap(session ->
-                        sendMessage(session, new Message(
-                                Collections.singletonList(IconDto.from(thumbnail)), GET_THUMBNAILS_RESPONSE, thumbnailType
+                        sendMessage(session, new Message(Collections.singletonList(IconDto.from(thumbnail)),
+                                GET_THUMBNAILS_RESPONSE, thumbnailType
                         ))
                 )
                 .doOnError(error -> log.error("Failed to send thumbnail: {}", error.getMessage()))
@@ -192,7 +214,8 @@ public class MessageService {
     }
 
     public Mono<Void> sendBadRequest(WebSocketSession session, String errorMessage, ResponseStatus responseStatus) {
-        return sendMessage(session, new Message(ConnectionStatus.CONNECTED, responseStatus, null, null, MessageType.INFO_RESPONSE, errorMessage, null));
+        return sendMessage(session, new Message(ConnectionStatus.CONNECTED, responseStatus, null, null,
+                MessageType.INFO_RESPONSE, errorMessage, null));
     }
 
     public Mono<Void> sendErrorResponse(WebSocketSession session, Throwable error) {
@@ -203,7 +226,9 @@ public class MessageService {
     }
 
     public void afterConnectionEstablished(WebSocketSession session) {
-        sendMessage(session, new Message(ConnectionStatus.CONNECTED, ResponseStatus.OK, null, null, MessageType.INFO_RESPONSE, "Connection established", null))
+        sendMessage(session,
+                new Message(ConnectionStatus.CONNECTED, ResponseStatus.OK, null, null, MessageType.INFO_RESPONSE,
+                        "Connection established", null))
                 .then(sendPingWithDelay(session))
                 .subscribe(
                         success -> log.info("Initial connection setup completed"),
@@ -214,6 +239,7 @@ public class MessageService {
     private RetryBackoffSpec getRetrySpec() {
         return Retry.backoff(maxAttempts, Duration.ofSeconds(minBackoff))
                 .doBeforeRetry(retrySignal -> log.info("Retrying send attempt #{}", retrySignal.totalRetries() + 1))
-                .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> new RuntimeException("Retries exhausted", retrySignal.failure()));
+                .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) ->
+                        new RuntimeException("Retries exhausted", retrySignal.failure()));
     }
 }

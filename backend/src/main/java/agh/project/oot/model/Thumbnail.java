@@ -21,6 +21,8 @@ public class Thumbnail {
 
     private ThumbnailType type;
 
+    private Long thumbnailOrder;
+
     public Thumbnail() {}
 
     public Thumbnail(byte[] data, ThumbnailType type) {

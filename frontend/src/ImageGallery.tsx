@@ -15,6 +15,7 @@ interface ImageGalleryProps {
 interface ImageData {
     data: string;
     id: number;
+    iconOrder: number;
 }
 
 const ImageGallery: React.FC<ImageGalleryProps> = ({
@@ -28,12 +29,12 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
     const [selectedImage, setSelectedImage] = useState<ImageData | null>(null);
 
     const handleImageClick = (image: string, index: number) => {
-        setSelectedImage({ data: image, id: index });
+        setSelectedImage({ data: image, id: index, iconOrder: index});
         setShowPopup(true);
     };
 
     const handleClosePopup = () => {
-        setOriginalImage({ data: configuration.loadingIcon, id: 0 });
+        setOriginalImage({ data: configuration.loadingIcon, id: 0, iconOrder: -1 });
         setShowPopup(false);
     };
 
@@ -50,6 +51,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
         }
     };
 
+    // TODO check the key must be '0' (should be base64Image.id)
     return (
         <div className="gallery" style={{ gridTemplateColumns: getGridTemplateColumns() }}>
             {images.map((base64Image) => (

@@ -43,4 +43,15 @@ public class ImageService {
         return imageRepository.deleteById(id)
                 .doOnError(error -> log.error("Error removing image from database", error));
     }
+
+    public Mono<Boolean> updateImageOrder(Image image, long imageOrder) {
+        image.setImageOrder(imageOrder);
+        return imageRepository.updateImageOrder(image.getId(), imageOrder)
+                .map(rowsUpdated -> rowsUpdated > 0)
+                .doOnError(error -> log.error("Error updating image order for imageId: {}", image.getId(), error));
+    }
+
+    public Mono<Long> getImageOrderById(Long id) {
+        return findById(id).map(Image::getImageOrder);
+    }
 }

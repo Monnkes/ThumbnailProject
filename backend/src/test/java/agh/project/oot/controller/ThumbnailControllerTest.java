@@ -110,7 +110,7 @@ public class ThumbnailControllerTest {
         assertThat(messagesList).contains(new Message(
                 ConnectionStatus.CONNECTED,
                 ResponseStatus.OK,
-                List.of(new IconDto(linux.getId(), linux.getData())),
+                List.of(IconDto.from(linux)),
                 SMALL,
                 MessageType.GET_THUMBNAILS_RESPONSE,
                 null,
@@ -120,7 +120,7 @@ public class ThumbnailControllerTest {
         assertThat(messagesList).contains(new Message(
                 ConnectionStatus.CONNECTED,
                 ResponseStatus.OK,
-                List.of(new IconDto(newYork.getId(), newYork.getData())),
+                List.of(IconDto.from(newYork)),
                 SMALL,
                 MessageType.GET_THUMBNAILS_RESPONSE,
                 null,
@@ -130,7 +130,7 @@ public class ThumbnailControllerTest {
         assertThat(messagesList).contains(new Message(
                 ConnectionStatus.CONNECTED,
                 ResponseStatus.OK,
-                List.of(new IconDto(ufo.getId(), ufo.getData())),
+                List.of(IconDto.from(ufo)),
                 SMALL,
                 MessageType.GET_THUMBNAILS_RESPONSE,
                 null,

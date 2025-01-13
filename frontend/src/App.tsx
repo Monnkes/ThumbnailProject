@@ -11,11 +11,13 @@ import {ThumbnailType} from "./utils/ThumbnailProperties";
 interface ImageData {
     data: string;
     id: number;
+    iconOrder: number;
 }
 
 const createDefaultImageData = (): ImageData => ({
     data: configuration.loadingIcon,
     id: 0,
+    iconOrder: -1,
 });
 
 function App() {
@@ -42,7 +44,7 @@ function App() {
             ws.onopen = () => {
                 console.log('Connection established');
                 setSocket(ws);
-                setConnectionStatus('connected'); 
+                setConnectionStatus('connected');
 
                 if (reconnectInterval) {
                     clearInterval(reconnectInterval);
@@ -88,17 +90,18 @@ function App() {
                     }
                 }
 
-                if (data.type === MessageTypes.GET_THUMBNAILS_RESPONSE && data.imagesData) {
-                    if (data.thumbnailType === thumbnailTypeRef.current) {
-                        addThumbnails(
-                            data.imagesData.map((thumbnail: ImageData) => ({
-                                id: thumbnail.id,
-                                data: thumbnail.data,
-                            }))
-                        );
-                    }
+            if (data.type === MessageTypes.GET_THUMBNAILS_RESPONSE && data.imagesData) {
+                if (data.thumbnailType === thumbnailTypeRef.current) {
+                    addThumbnails(
+                        data.imagesData.map((thumbnail: ImageData) => ({
+                            id: thumbnail.id,
+                            data: thumbnail.data,
+                            iconOrder: thumbnail.iconOrder
+                        }))
+                    );
                 }
-            };
+            }
+        };
 
             ws.onclose = () => {
                 console.log('Connection closed. Attempting to reconnect...');
@@ -158,25 +161,22 @@ function App() {
     };
 
     const addThumbnails = (thumbnails: ImageData[]) => {
-        setImages((prevImages) => {
-            const existingIds = new Set(prevImages.map((image) => image.id));
-
+        setImages(prevImages => {
             const updatedImages = [...prevImages];
-            thumbnails.forEach((thumbnail, index) => {
-                if (!existingIds.has(thumbnail.id)) {
-                    const placeholderIndex = updatedImages.findIndex((image) => image.id === 0);
-                    if (placeholderIndex !== -1) {
-                        updatedImages[placeholderIndex] = thumbnail;
-                    } else {
-                        updatedImages.push(thumbnail);
-                    }
+
+            for (const thumbnail of thumbnails) {
+                if(thumbnail.data === undefined || thumbnail.data === null) {
+                    console.error("Thumbnail with missing data: " + thumbnail);
+                    continue;
                 }
-            });
+                updatedImages[thumbnail.iconOrder] = thumbnail;
+            }
 
             return updatedImages;
         });
     };
 
+    // TODO Add sending placeholders during changing ThumbnailType
     return (
         <div>
             <header className="header">
