@@ -1,8 +1,8 @@
 package agh.project.oot.controller;
 
 import agh.project.oot.ConnectionStatus;
-import agh.project.oot.Message;
-import agh.project.oot.MessageType;
+import agh.project.oot.OldMessage;
+import agh.project.oot.messages.MessageType;
 import agh.project.oot.ResponseStatus;
 import agh.project.oot.model.IconDto;
 import agh.project.oot.model.Thumbnail;
@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import static agh.project.oot.model.ThumbnailType.SMALL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -48,7 +49,7 @@ public class ThumbnailControllerTest {
     private int port;
 
     private String URL;
-    final List<Message> messagesList = new ArrayList<>();
+    final List<OldMessage> messagesList = new ArrayList<>();
     private TextWebSocketHandler handler;
     private volatile WebSocketSession testSession;
     private WebSocketClient client;
@@ -73,8 +74,8 @@ public class ThumbnailControllerTest {
 
             @Override
             protected void handleTextMessage(WebSocketSession session, TextMessage message) throws JsonProcessingException {
-                Message responseMessage = objectMapper.readValue(message.getPayload(), Message.class);
-                messagesList.add(responseMessage);
+                OldMessage responseOldMessage = objectMapper.readValue(message.getPayload(), OldMessage.class);
+                messagesList.add(responseOldMessage);
                 latch.countDown();
             }
         };
@@ -96,50 +97,60 @@ public class ThumbnailControllerTest {
         assertTrue(await, "Too few messages");
         assertThat(messagesList).hasSize(5);
 
-        assertThat(messagesList.getFirst()).isEqualTo(new Message(
+        assertThat(messagesList.getFirst()).isEqualTo(new OldMessage(
                 ConnectionStatus.CONNECTED,
                 ResponseStatus.OK,
+                null,
                 null,
                 MessageType.INFO_RESPONSE,
-                "Connection established"
-        ));
-
-        assertThat(messagesList).contains(new Message(
-                ConnectionStatus.CONNECTED,
-                ResponseStatus.OK,
-                List.of(new IconDto(linux.getId(), linux.getData())),
-                MessageType.GET_THUMBNAILS_RESPONSE,
+                "Connection established",
                 null
         ));
 
-        assertThat(messagesList).contains(new Message(
+        assertThat(messagesList).contains(new OldMessage(
                 ConnectionStatus.CONNECTED,
                 ResponseStatus.OK,
-                List.of(new IconDto(newYork.getId(), newYork.getData())),
+                List.of(IconDto.from(linux)),
+                SMALL,
                 MessageType.GET_THUMBNAILS_RESPONSE,
+                null,
                 null
         ));
 
-        assertThat(messagesList).contains(new Message(
+        assertThat(messagesList).contains(new OldMessage(
                 ConnectionStatus.CONNECTED,
                 ResponseStatus.OK,
-                List.of(new IconDto(ufo.getId(), ufo.getData())),
+                List.of(IconDto.from(newYork)),
+                SMALL,
                 MessageType.GET_THUMBNAILS_RESPONSE,
+                null,
                 null
         ));
 
-        assertThat(messagesList).contains(new Message(
+        assertThat(messagesList).contains(new OldMessage(
+                ConnectionStatus.CONNECTED,
+                ResponseStatus.OK,
+                List.of(IconDto.from(ufo)),
+                SMALL,
+                MessageType.GET_THUMBNAILS_RESPONSE,
+                null,
+                null
+        ));
+
+        assertThat(messagesList).contains(new OldMessage(
                 ConnectionStatus.CONNECTED,
                 ResponseStatus.OK,
                 null,
+                null,
                 MessageType.PING,
+                null,
                 null
         ));
     }
 
     private Thumbnail mockThumbnail(String path) {
         byte[] image = ImageReader.loadImageAsBytes(path);
-        Thumbnail thumbnail = new Thumbnail(image);
+        Thumbnail thumbnail = new Thumbnail(image, SMALL);
         thumbnailRepository.save(thumbnail).block();
         return thumbnail;
     }
@@ -151,4 +162,6 @@ public class ThumbnailControllerTest {
                         .rowsUpdated()
                         .then());
     }
+
+    //TODO Add test to check properly handling UnsupportedMediaType
 }

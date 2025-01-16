@@ -1,18 +1,20 @@
 package agh.project.oot.service;
 
-import agh.project.oot.ConnectionStatus;
-import agh.project.oot.Message;
-import agh.project.oot.MessageType;
-import agh.project.oot.ResponseStatus;
+import agh.project.oot.*;
+import agh.project.oot.messages.*;
 import agh.project.oot.model.IconDto;
 import agh.project.oot.model.Image;
 import agh.project.oot.model.Thumbnail;
+import agh.project.oot.model.ThumbnailType;
 import agh.project.oot.thumbnails.UnsupportedImageFormatException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.tasks.UnsupportedFormatException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -26,13 +28,20 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+
+import java.util.Map;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class MessageService {
     private final ObjectMapper objectMapper;
+    private final ImageSink imageSink;
     private final ThumbnailService thumbnailService;
+    private final ImageService imageService;
+    private final AtomicLong currentImageOrder = new AtomicLong(-1);
+    private final SessionRepository sessionRepository;
 
     @Value("${controller.maxAttempts}")
     private int maxAttempts;
@@ -43,8 +52,107 @@ public class MessageService {
     @Value("${controller.delay}")
     private int delay;
 
+    @EventListener(ApplicationReadyEvent.class)
+    public void listenForNewImages() {
+        imageSink.getSink().asFlux()
+                .flatMap(imageService::findById)
+                .flatMap(image -> thumbnailService.saveThumbnailsForImage(image)
+                        .flatMap(thumbnail -> processImage(thumbnail, image))
+                )
+                .publishOn(Schedulers.boundedElastic())
+                .onErrorContinue((error, item) -> handleException(error))
+                .subscribe(
+                        success -> log.info("Image processing completed successfully"),
+                        error -> log.error("Unhandled error during image processing: {}", error.getMessage())
+                );
+    }
+
+    // TODO Please refactor it
+    @EventListener(ApplicationReadyEvent.class)
+    public Mono<Void> processAndNotifyMissingThumbnails() {
+        log.info("Processing and notifying about missing thumbnails...");
+
+        return messageServiceSetup()
+                .then(
+                        thumbnailService.generateMissingThumbnails()
+                                .flatMap(tuple -> processImage(tuple.getT2(), tuple.getT1()))
+                                .then()
+                )
+                .doOnSuccess(unused -> log.info("Finished notifying clients about all missing thumbnails."))
+                .onErrorContinue((error, item) -> handleException(error));
+    }
+
+    private Mono<Void> messageServiceSetup() {
+        return imageService.getTopImageOrder()
+                .doOnNext(currentImageOrder::set)
+                .then();
+    }
+
+
+    private void handleException(Throwable error) {
+        log.error("Error processing image: {}", error.getMessage());
+        sessionRepository.getSessions().values().forEach(session ->
+                sendErrorResponse(session.getSession(), error).subscribe()
+        );
+        if (error instanceof UnsupportedImageFormatException) {
+            imageService.removeById(((UnsupportedImageFormatException) error).getId()).subscribe(
+                    // TODO refactor it
+                    success -> log.info("Image processing completed successfully"),
+                    err -> log.error("Unhandled error during image processing: {}", error.getMessage())
+            );
+        }
+    }
+
+    private Mono<Void> processImage(Thumbnail thumbnail, Image image) {
+        return getImageOrder(image)
+                .switchIfEmpty(Mono.defer(() -> Mono.fromCallable(currentImageOrder::incrementAndGet)
+                        .flatMap(upgradedImageOrder -> imageService.updateImageOrder(image, upgradedImageOrder)
+                                .doOnError(e -> log.error("Error updating image order: {}", e.getMessage()))
+                                .thenReturn(upgradedImageOrder)
+                        )))
+                .flatMap(imageOrder ->
+                        thumbnailService.updateThumbnailOrder(thumbnail, imageOrder)
+                                .doOnError(e -> log.error("Error updating thumbnail order: {}", e.getMessage()))
+                                .then(sendGeneratedThumbnail(thumbnail))
+                )
+                .then();
+    }
+
+    public Mono<Long> getImageOrder(Image image) {
+        return Mono.justOrEmpty(image.getImageOrder());
+    }
+
+    public Mono<Void> sendGeneratedThumbnail(Thumbnail thumbnail) {
+        var thumbnailType = thumbnail.getType();
+        return Flux.fromIterable(sessionRepository.getSessions().values())
+                .filter(sessionData -> sessionData.getThumbnailType().equals(thumbnailType))
+                .map(SessionData::getSession)
+                .flatMap(session ->
+                        sendMessage(session, new GetThumbnailsMessage(thumbnailType, Collections.singletonList(IconDto.from(thumbnail))))
+                )
+                .doOnError(error -> log.error("Failed to send thumbnail: {}", error.getMessage()))
+                .then();
+    }
+
     public Mono<Message> parseMessage(String payload) {
-        return Mono.fromCallable(() -> objectMapper.readValue(payload, Message.class))
+        return Mono.fromCallable(() -> {
+                    Map<String, Object> messageMap = objectMapper.readValue(payload, new TypeReference<>() {
+                    });
+                    MessageType type = MessageType.valueOf((String) messageMap.get("type"));
+                    return switch (type) {
+                        case UPLOAD_IMAGES ->
+                                new UploadImageMessage(objectMapper.convertValue(messageMap.get("imagesData"), new TypeReference<>() {
+                                }));
+                        case GET_THUMBNAILS ->
+                                new GetThumbnailsMessage(ThumbnailType.valueOf((String) messageMap.get("thumbnailType")));
+                        case GET_IMAGE ->
+                                new GetImageMessage(objectMapper.convertValue(messageMap.get("ids"), new TypeReference<>() {
+                                }));
+                        case PONG -> new PingMessage();
+                        case PLACEHOLDERS_NUMBER_RESPONSE, INFO_RESPONSE, PING ->
+                                new InfoResponseMessage(ResponseStatus.UNSUPPORTED_MEDIA_TYPE);
+                    };
+                })
                 .onErrorResume(error -> {
                     log.error("Error parsing message", error);
                     return Mono.error(new IllegalArgumentException("Invalid message format", error));
@@ -52,19 +160,13 @@ public class MessageService {
     }
 
     public Mono<Void> sendMessage(WebSocketSession session, Message message) {
-        log.info("Preparing to send message. Session ID: {}", session.getId());
-        log.info("WebSocket message size: {} bytes", message.calculateSize());
-
         return Mono.defer(() -> {
                     if (!session.isOpen()) {
                         log.warn("Session is not open. Unable to send message. Session ID: {}", session.getId());
                         return Mono.empty();
                     }
                     try {
-                        log.debug("Serializing message: {}", message);
                         String jsonMessage = objectMapper.writeValueAsString(message);
-
-                        log.debug("Sending serialized message: {}", jsonMessage);
                         session.sendMessage(new TextMessage(jsonMessage));
 
                         log.info("Message sent successfully. Session ID: {}", session.getId());
@@ -77,80 +179,77 @@ public class MessageService {
                         return Mono.error(e);
                     }
                 })
-                .doOnSubscribe(subscription -> log.debug("Subscription started for sending message. Session ID: {}", session.getId()))
                 .doOnError(e -> log.error("Error occurred during message sending. Session ID: {}, Error: {}", session.getId(), e.getMessage()))
-                .doOnSuccess(ignored -> log.debug("Message sending process completed successfully. Session ID: {}", session.getId()))
                 .retryWhen(getRetrySpec())
-                .doFinally(signal -> log.info("Send message process finished with signal: {}. Session ID: {}", signal, session.getId()))
                 .then();
     }
 
 
-    public Mono<Void> handleUploadImages(WebSocketSession session, Message request) {
-        List<Image> images = request.getImagesData().stream()
-                .map(icon -> new Image(icon.getData()))
-                .toList();
+    public Mono<Void> handleUploadImages(UploadImageMessage message) {
+        Mono<Void> placeholdersMono = handleGeneratePlaceholders(message.getImagesData().size());
 
-        return Flux.fromIterable(images)
+        Mono<Void> saveAndNotifyMono = Flux.fromIterable(message.getImagesData())
+                .map(icon -> new Image(icon.getData()))
                 .parallel()
                 .runOn(Schedulers.parallel())
-                .flatMap(image -> this.processSingleImage(session, image))
+                .flatMap(imageService::saveAndNotifyThumbnail)
                 .sequential()
                 .then();
+
+        return placeholdersMono.then(saveAndNotifyMono);
     }
 
-    private Mono<Thumbnail> processSingleImage(WebSocketSession session, Image image) {
-        return thumbnailService.saveImageAndThumbnail(image)
-                .flatMap(thumbnail ->
-                        sendMessage(session, new Message(Collections.singletonList(IconDto.from(thumbnail)), MessageType.GET_THUMBNAILS_RESPONSE))
-                                .then(Mono.just(thumbnail))
-                )
-                .onErrorResume(error -> {
-                    log.error("Error processing image: {}", error.getMessage());
-                    return sendErrorResponse(session, error)
-                            .then(Mono.empty());
-                });
-    }
-
-
-    public Mono<Void> handleGetAllThumbnails(WebSocketSession session) {
-        return thumbnailService.getAllThumbnails()
-                .flatMap(thumbnail -> {
-                    try {
-                        return sendMessage(session, new Message(Collections.singletonList(IconDto.from(thumbnail)), MessageType.GET_THUMBNAILS_RESPONSE));
-                    } catch (Exception e) {
-                        log.error("Error while sending thumbnail message", e);
-                        return Mono.empty();
-                    }
-                })
-                .doOnComplete(() -> log.info("All initial thumbnails sent successfully"))
-                .doOnError(error -> log.error("Error getting thumbnails", error))
-                .onErrorResume(e -> {
-                    log.error("Fallback due to error", e);
-                    return Mono.error(e);
-                })
+    public Mono<Void> handleGeneratePlaceholders(Integer placeholdersNumber) {
+        return Flux.fromIterable(sessionRepository.getSessions().values())
+                .flatMap(sessionData -> sendMessage(sessionData.getSession(), new PlaceholderNumberMessage(placeholdersNumber)))
                 .then();
     }
 
-    public Mono<Void> handleGetImage(WebSocketSession session, Message request) {
-        Long imageId = request.getIds().getFirst();
+    public Mono<Void> handleGetAllThumbnails(WebSocketSession session, GetThumbnailsMessage message) {
+        return imageService.countImages()
+                .flatMap(count -> handleGeneratePlaceholders(count.intValue()))
+                .then(
+                     thumbnailService.getAllThumbnailsByType(message.getThumbnailType())
+                        .flatMap(thumbnail -> {
+                            try {
+                                message.setImagesData(Collections.singletonList(IconDto.from(thumbnail)));
+                                return sendMessage(session, message);
+                            } catch (Exception e) {
+                                log.error("Error while sending thumbnail message", e);
+                                return Mono.empty();
+                            }
+                        })
+                        .doOnComplete(() -> log.info("All initial thumbnails sent successfully"))
+                        .doOnError(error -> log.error("Error getting thumbnails", error))
+                        .onErrorResume(e -> {
+                            log.error("Fallback due to error", e);
+                            return Mono.error(e);
+                        })
+                        .then());
+    }
+
+    public Mono<Void> handleGetImage(WebSocketSession session, GetImageMessage message) {
+        Long imageId = message.getIds().getFirst();
 
         return thumbnailService.getImageByThumbnailId(imageId)
-                .flatMap(imageData -> sendMessage(session, new Message(List.of(IconDto.from(imageData)), MessageType.GET_IMAGE_RESPONSE)))
+                .flatMap(imageData -> {
+                    message.setImagesData(List.of(IconDto.from(imageData)));
+                    return sendMessage(session, message);
+                })
                 .then();
     }
 
-    public Mono<Void> sendPingWithDelay(WebSocketSession session) {
+    public Mono<Void> sendPingWithDelay(WebSocketSession session, Message message) {
         return Mono.delay(Duration.ofSeconds(delay))
-                .then(sendMessage(session, new Message(null, MessageType.PING)));
+                .then(sendMessage(session, message));
     }
 
     public Mono<Void> sendBadRequest(WebSocketSession session, String errorMessage, ResponseStatus responseStatus) {
-        return sendMessage(session, new Message(ConnectionStatus.CONNECTED, responseStatus, null, MessageType.INFO_RESPONSE, errorMessage));
+
+        return sendMessage(session, new InfoResponseMessage(responseStatus, errorMessage));
     }
 
     public Mono<Void> sendErrorResponse(WebSocketSession session, Throwable error) {
-        log.error("Error processing message {}", error.getMessage());
         if (error.getClass() == UnsupportedImageFormatException.class || error.getClass() == UnsupportedFormatException.class) {
             return sendBadRequest(session, "Internal error: " + error.getMessage(), ResponseStatus.UNSUPPORTED_MEDIA_TYPE);
         }
@@ -158,8 +257,10 @@ public class MessageService {
     }
 
     public void afterConnectionEstablished(WebSocketSession session) {
-        sendMessage(session, new Message(ConnectionStatus.CONNECTED, ResponseStatus.OK, null, MessageType.INFO_RESPONSE, "Connection established"))
-                .then(sendPingWithDelay(session))
+        imageService.countImages()
+                .then(sendMessage(session,
+                        new InfoResponseMessage(ResponseStatus.OK, "Connection established")))
+                .then(sendPingWithDelay(session, new PingMessage()))
                 .subscribe(
                         success -> log.info("Initial connection setup completed"),
                         error -> log.error("Error during connection setup", error)
@@ -169,6 +270,7 @@ public class MessageService {
     private RetryBackoffSpec getRetrySpec() {
         return Retry.backoff(maxAttempts, Duration.ofSeconds(minBackoff))
                 .doBeforeRetry(retrySignal -> log.info("Retrying send attempt #{}", retrySignal.totalRetries() + 1))
-                .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> new RuntimeException("Retries exhausted", retrySignal.failure()));
+                .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) ->
+                        new RuntimeException("Retries exhausted", retrySignal.failure()));
     }
 }

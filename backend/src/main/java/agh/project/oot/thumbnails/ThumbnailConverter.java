@@ -2,9 +2,10 @@ package agh.project.oot.thumbnails;
 
 import agh.project.oot.model.Image;
 import agh.project.oot.model.Thumbnail;
+import agh.project.oot.model.ThumbnailType;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -12,18 +13,26 @@ import reactor.core.publisher.Mono;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 
+import static agh.project.oot.model.ThumbnailType.*;
+import org.springframework.beans.factory.annotation.Value;
+
 @Component
 @Slf4j
 public class ThumbnailConverter {
-    private final int width;
-    private final int height;
 
-    public ThumbnailConverter(@Value("${thumbnail.width}") int width, @Value("${thumbnail.height}") int height) {
-        this.width = width;
-        this.height = height;
-    }
+    @Value("${thumbnail.width}")
+    private int thumbnailWidth;
 
-    public Mono<Thumbnail> generateThumbnail(Image image) {
+    @Value("${thumbnail.height}")
+    private int thumbnailHeight;
+
+    @Value("${converter.mediumThumbnailScale}")
+    private int mediumThumbnailScale;
+
+    @Value("${converter.bigThumbnailScale}")
+    private int bigThumbnailScale;
+
+    public Mono<Thumbnail> generateThumbnail(Image image, int width, int height, ThumbnailType type) {
         return Mono.fromCallable(() -> {
             ByteArrayInputStream inputStream = new ByteArrayInputStream(image.getData());
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -31,17 +40,20 @@ public class ThumbnailConverter {
             Thumbnails.of(inputStream)
                     .size(width, height)
                     .toOutputStream(outputStream);
-            return new Thumbnail(outputStream.toByteArray());
-        }).onErrorResume(error -> Mono.error(new UnsupportedImageFormatException(error.getMessage())));
+
+            Thumbnail thumbnail = new Thumbnail();
+            thumbnail.setData(outputStream.toByteArray());
+            thumbnail.setType(type);
+
+            return thumbnail;
+        }).onErrorResume(error -> Mono.error(new UnsupportedImageFormatException(error.getMessage(), image.getId())));
     }
 
-    public Flux<Thumbnail> generateThumbnails(Flux<Image> imageFlux) {
-        return imageFlux.flatMap(imageData ->
-                generateThumbnail(imageData)
-                        .doOnError(error -> {
-                            log.error("Error processing image: {}", error.getMessage());
-                        })
-                        .onErrorResume(error -> Mono.empty())
+    public Flux<Thumbnail> generateAllThumbnails(Image image) {
+        return Flux.concat(
+                generateThumbnail(image, thumbnailWidth, thumbnailHeight, SMALL),
+                generateThumbnail(image, thumbnailWidth * mediumThumbnailScale, thumbnailHeight * mediumThumbnailScale, MEDIUM),
+                generateThumbnail(image, thumbnailWidth * bigThumbnailScale, thumbnailHeight * bigThumbnailScale, BIG)
         );
     }
 }

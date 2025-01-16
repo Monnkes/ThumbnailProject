@@ -19,17 +19,20 @@ public class Thumbnail {
 
     private Long imageId;
 
+    private ThumbnailType type;
+
+    private Long thumbnailOrder;
+
     public Thumbnail() {}
 
-    public Thumbnail(byte[] data) {
+    public Thumbnail(byte[] data, ThumbnailType type) {
         this.data = data;
+        this.type = type;
     }
 
-    public Thumbnail(byte[] data, Long imageId) {
+    public Thumbnail(byte[] data, Long imageId, ThumbnailType type) {
         this.data = data;
         this.imageId = imageId;
-    }
-    public static Thumbnail from(Image image) {
-        return new Thumbnail(image.getData(), image.getId());
+        this.type = type;
     }
 }

@@ -84,7 +84,7 @@ To run the application using Docker, follow these steps:
 - **[12-12-2024]** Upgrade simple UI
 - **[12-12-2024]** Implement database repository and models
 - **[12-12-2024]** Added database initialization to docker
-- **[12-12-2024]** New message types handling
+- **[12-12-2024]** New oldMessage types handling
 - **[12-12-2024]** Init readme
 - **[12-12-2024]** Original image on click fixing
 - **[12-12-2024]** Final implementation
@@ -98,6 +98,11 @@ To run the application using Docker, follow these steps:
 - **[20-12-2024]** Fix bugs
 - **[20-12-2024]** Docker for tests
 - **[20-12-2024]** Frontend polishing
+- **[30-12-2024]** New thumbnails sizes
+- **[01-01-2025]** Multiple sessions
+- **[02-01-2025]** Add reactive sink listener
+- **[02-01-2025]** Upgrade placeholders FE
+- **[03-01-2025]** Tests rewriting
 
 ## Links
 - [Documentation](https://lucid.app/lucidchart/d1242d14-599a-4b54-be8e-1b0afc12c6f4/edit?viewport_loc=9882%2C-418%2C14033%2C6586%2C0_0&invitationId=inv_491730a8-bb13-4598-88fb-191e7f3f69cd)

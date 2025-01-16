@@ -13,20 +13,23 @@ public class IconDto {
 
     private byte[] data;
 
+    private Long iconOrder;
+
     public IconDto() {
     }
 
-    public IconDto(Long id, byte[] data) {
+    public IconDto(Long id, byte[] data, Long iconOrder) {
         this.id = id;
         this.data = data;
+        this.iconOrder = iconOrder;
     }
 
     public static IconDto from(Thumbnail thumbnail) {
-        return new IconDto(thumbnail.getId(), thumbnail.getData());
+        return new IconDto(thumbnail.getId(), thumbnail.getData(), thumbnail.getThumbnailOrder());
     }
 
     public static IconDto from(Image image) {
-        return new IconDto(image.getId(), image.getData());
+        return new IconDto(image.getId(), image.getData(), image.getImageOrder());
     }
 
     @Override

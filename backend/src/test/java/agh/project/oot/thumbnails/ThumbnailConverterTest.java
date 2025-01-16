@@ -11,6 +11,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+import static agh.project.oot.model.ThumbnailType.SMALL;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ThumbnailConverterTest {
@@ -23,13 +24,13 @@ class ThumbnailConverterTest {
         // Given
         int width = 150;
         int height = 150;
-        ThumbnailConverter thumbnailConverter = new ThumbnailConverter(width, height);
+        ThumbnailConverter thumbnailConverter = new ThumbnailConverter();
 
         byte[] inputData = createFakeImageData();
         Image inputImage = new Image(inputData);
 
         // When
-        Mono<Thumbnail> thumbnailMono = thumbnailConverter.generateThumbnail(inputImage);
+        Mono<Thumbnail> thumbnailMono = thumbnailConverter.generateThumbnail(inputImage, width, height, SMALL);
         Thumbnail result = thumbnailMono.block();
 
         // Then

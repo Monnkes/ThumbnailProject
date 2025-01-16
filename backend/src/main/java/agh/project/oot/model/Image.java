@@ -4,6 +4,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 @Setter
@@ -16,6 +17,9 @@ public class Image{
     private Long id;
 
     private byte[] data;
+
+    @Column("image_order")
+    private Long imageOrder;
 
     public Image() {}
 

@@ -2,19 +2,20 @@ package agh.project.oot.service;
 
 import agh.project.oot.model.Image;
 import agh.project.oot.model.Thumbnail;
-import agh.project.oot.repository.ImageRepository;
+import agh.project.oot.model.ThumbnailType;
 import agh.project.oot.repository.ThumbnailRepository;
 import agh.project.oot.thumbnails.ThumbnailConverter;
-import agh.project.oot.thumbnails.UnsupportedImageFormatException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
-import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -22,54 +23,37 @@ import java.util.NoSuchElementException;
 public class ThumbnailService {
 
     private final ThumbnailConverter thumbnailConverter;
-    private final ImageRepository imageRepository;
+    private final ImageService imageService;
     private final ThumbnailRepository thumbnailRepository;
 
-    /**
-     * Processes a list of images, generates thumbnails, and saves them to the database.
-     *
-     * @param images the list of images to process.
-     * @return a Flux of saved thumbnails.
-     */
-    @Deprecated
-    public Flux<Thumbnail> saveImagesAndSendThumbnails(List<Image> images) {
-        return Flux.fromIterable(images)
-                .parallel()
-                .runOn(Schedulers.parallel())
-                .flatMap(this::saveImageAndThumbnail)
-                .sequential();
+    public Flux<Tuple2<Image, Thumbnail>> generateMissingThumbnails() {
+        log.info("Generating missing thumbnails...");
+
+        return imageService.findAllImages()
+                .flatMap(image -> generateMissingThumbnailsForImage(image)
+                        .map(thumbnail -> Tuples.of(image, thumbnail))
+                );
     }
 
-    /**
-     * Handles the processing of a single image: generates a thumbnail and saves both the image and its thumbnail.
-     *
-     * @param image the image to process.
-     * @return a Mono of the saved thumbnail.
-     */
-    public Mono<Thumbnail> saveImageAndThumbnail(Image image) {
-        return thumbnailConverter.generateThumbnail(image)
-                .flatMap(thumbnail -> saveImageAndThumbnail(image, thumbnail))
-                .onErrorResume(error -> {
-                    log.error("Error processing image: {}", error.getMessage());
-                    return Mono.error(error);
-                });
+    // TODO Transfer this logic to Database
+    private Flux<Thumbnail> generateMissingThumbnailsForImage(Image image) {
+        return Flux.fromStream(Stream.of(ThumbnailType.SMALL, ThumbnailType.MEDIUM, ThumbnailType.BIG))
+                .flatMap(type -> thumbnailRepository.findByImageIdAndType(image.getId(), type)
+                        .switchIfEmpty(thumbnailConverter.generateThumbnail(image, type.getWidth(), type.getHeight(), type)
+                                .flatMap(thumbnail -> {
+                                    thumbnail.setImageId(image.getId());
+                                    return this.save(thumbnail);
+                                })));
     }
 
-    /**
-     * Saves an image and its corresponding thumbnail to the database.
-     *
-     * @param image the original image.
-     * @param thumbnail the generated thumbnail data.
-     * @return a Mono of the saved thumbnail.
-     */
-    private Mono<Thumbnail> saveImageAndThumbnail(Image image, Thumbnail thumbnail) {
-        return imageRepository.save(image)
-                .flatMap(savedImage -> {
-                    thumbnail.setImageId(savedImage.getId());
-                    return thumbnailRepository.save(thumbnail);
-                })
-                .doOnSuccess(savedThumbnail -> log.info("Thumbnail saved successfully with ID: {}", savedThumbnail.getId()))
-                .doOnError(error -> log.error("Error saving thumbnail: {}", error.getMessage()));
+
+    public Flux<Thumbnail> saveThumbnailsForImage(Image savedImage) {
+        return thumbnailConverter.generateAllThumbnails(savedImage)
+                .flatMapSequential(thumbnail -> {
+                            thumbnail.setImageId(savedImage.getId());
+                            return this.save(thumbnail);
+                        }
+                );
     }
 
     /**
@@ -77,8 +61,8 @@ public class ThumbnailService {
      *
      * @return a Flux of all thumbnails.
      */
-    public Flux<Thumbnail> getAllThumbnails() {
-        return thumbnailRepository.findAll()
+    public Flux<Thumbnail> getAllThumbnailsByType(ThumbnailType type) {
+        return thumbnailRepository.findByType(type)
                 .publishOn(Schedulers.parallel());
     }
 
@@ -90,8 +74,19 @@ public class ThumbnailService {
      */
     public Mono<Image> getImageByThumbnailId(Long thumbnailId) {
         return thumbnailRepository.findById(thumbnailId)
-                .flatMap(thumbnail -> imageRepository.findById(thumbnail.getImageId())
+                .flatMap(thumbnail -> imageService.findById(thumbnail.getImageId())
                         .switchIfEmpty(Mono.error(new IllegalArgumentException("Image with ID " + thumbnail.getImageId() + " not found"))))
                 .switchIfEmpty(Mono.error(new NoSuchElementException("Thumbnail with ID " + thumbnailId + " not found")));
+    }
+
+    public Mono<Thumbnail> save(Thumbnail thumbnail) {
+        return thumbnailRepository.save(thumbnail);
+    }
+
+    public Mono<Boolean> updateThumbnailOrder(Thumbnail thumbnail, long thumbnailOrder) {
+        thumbnail.setThumbnailOrder(thumbnailOrder);
+        return thumbnailRepository.updateThumbnailOrder(thumbnail.getId(), thumbnailOrder)
+                .map(rowsUpdated -> rowsUpdated > 0)
+                .doOnError(error -> log.error("Error updating thumbnail order for thumbnailId: {}", thumbnail.getId(), error));
     }
 }
