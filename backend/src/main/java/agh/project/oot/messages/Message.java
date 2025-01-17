@@ -7,7 +7,8 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public abstract sealed class Message permits GetImageMessage, GetThumbnailsMessage, InfoResponseMessage, PingMessage, PlaceholderNumberMessage, PongMessage, UploadImageMessage {
+public abstract sealed class Message permits GetImageMessage, GetThumbnailsMessage, InfoResponseMessage, PingMessage,
+        PlaceholderNumberMessage, PongMessage, UploadImageMessage, UploadZipMessage {
     private ConnectionStatus connectionStatus;
     private ResponseStatus responseStatus;
     private MessageType messageType;

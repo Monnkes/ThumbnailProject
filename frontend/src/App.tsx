@@ -28,13 +28,19 @@ function App() {
     const thumbnailTypeRef = useRef<ThumbnailType>(ThumbnailType.SMALL);
     const numberOfThumbnailsRef = useRef<number>(0);
     const imagesRef = useRef<ImageData[]>([]);
+    // TODO Enuem
     const [connectionStatus, setConnectionStatus] = useState<string>('connecting');
     const [thumbnailsMagazine, setThumbnailsMagazine] = useState<ImageData[]>([])
 
 
     useEffect(() => {
         imagesRef.current = images;
-    }, [images]);
+        if(thumbnailsMagazine.length){
+            addThumbnails(thumbnailsMagazine);
+            setThumbnailsMagazine([]);
+        }
+    }, [images, thumbnailsMagazine, imagesRef]);
+
 
     useEffect(() => {
         let reconnectInterval: NodeJS.Timeout | null = null;
@@ -57,6 +63,7 @@ function App() {
                     type: `GET_THUMBNAILS`,
                     thumbnailType: thumbnailTypeRef.current,
                 };
+
                 console.log('Sending message to server on reconnect:', message);
                 ws.send(JSON.stringify(message));
             };
@@ -74,7 +81,6 @@ function App() {
                         type: MessageTypes.PONG,
                     };
                     ws.send(JSON.stringify(message));
-                    console.log('Message sent:', message);
                 }
 
                 if (data.messageType === MessageTypes.INFO_RESPONSE) {
@@ -151,7 +157,7 @@ function App() {
         };
     }, []);
 
-    const fetchThumbnails = (type: ThumbnailType) => {
+    const fetchThumbnails = () => {
         setImages([]);
         numberOfThumbnailsRef.current = 0;
         console.log(`New thumbnails type: ${thumbnailTypeRef.current}`)
@@ -194,7 +200,7 @@ function App() {
         });
     };
 
-    // TODO Add sending placeholders during changing ThumbnailType
+
     return (
         <div>
             <header className="header">
@@ -208,7 +214,7 @@ function App() {
                             className={`button ${thumbnailTypeRef.current === ThumbnailType.SMALL ? 'active' : ''}`}
                             onClick={() => {
                                 thumbnailTypeRef.current = ThumbnailType.SMALL;
-                                fetchThumbnails(ThumbnailType.SMALL);
+                                fetchThumbnails();
                             }}
                         >{texts.small}
                         </button>
@@ -216,7 +222,7 @@ function App() {
                             className={`button ${thumbnailTypeRef.current === ThumbnailType.MEDIUM ? 'active' : ''}`}
                             onClick={() => {
                                 thumbnailTypeRef.current = ThumbnailType.MEDIUM;
-                                fetchThumbnails(ThumbnailType.MEDIUM);
+                                fetchThumbnails();
                             }}
                         >{texts.medium}
                         </button>
@@ -224,7 +230,7 @@ function App() {
                             className={`button ${thumbnailTypeRef.current === ThumbnailType.BIG ? 'active' : ''}`}
                             onClick={() => {
                                 thumbnailTypeRef.current = ThumbnailType.BIG;
-                                fetchThumbnails(ThumbnailType.BIG);
+                                fetchThumbnails();
                             }}
                         >{texts.big}
                         </button>

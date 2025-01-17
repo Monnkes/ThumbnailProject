@@ -40,6 +40,7 @@ public class ThumbnailController extends AbstractWebSocketHandler {
         return messageService.parseMessage(textMessage.getPayload())
                 .flatMap(message -> switch (message) {
                     case UploadImageMessage uploadImageMessage -> messageService.handleUploadImages(uploadImageMessage);
+                    case UploadZipMessage uploadZipMessage -> messageService.handleUploadZip(uploadZipMessage);
                     case GetThumbnailsMessage getThumbnailsMessage -> setThumbnailTypeAndResponse(session, getThumbnailsMessage);
                     case GetImageMessage getImageMessage -> messageService.handleGetImage(session, getImageMessage);
                     case PingMessage pingMessage -> messageService.sendPingWithDelay(session, pingMessage);

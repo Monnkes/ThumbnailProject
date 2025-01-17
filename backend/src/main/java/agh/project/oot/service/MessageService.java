@@ -19,18 +19,24 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
 import reactor.util.retry.RetryBackoffSpec;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 @Slf4j
 @Component
@@ -143,6 +149,9 @@ public class MessageService {
                         case UPLOAD_IMAGES ->
                                 new UploadImageMessage(objectMapper.convertValue(messageMap.get("imagesData"), new TypeReference<>() {
                                 }));
+                        case UPLOAD_ZIP ->
+                                new UploadZipMessage(objectMapper.convertValue(messageMap.get("zipData"), new TypeReference<>() {
+                                }));
                         case GET_THUMBNAILS ->
                                 new GetThumbnailsMessage(ThumbnailType.valueOf((String) messageMap.get("thumbnailType")));
                         case GET_IMAGE ->
@@ -199,6 +208,44 @@ public class MessageService {
         return placeholdersMono.then(saveAndNotifyMono);
     }
 
+    public Mono<Void> handleUploadZip(UploadZipMessage message) {
+        return Flux.create((FluxSink<Image> sink) -> {
+                    try (InputStream is = new ByteArrayInputStream(message.getZipData());
+                         ZipInputStream zis = new ZipInputStream(is)) {
+
+                        ZipEntry entry;
+                        while ((entry = zis.getNextEntry()) != null) {
+                            if (!entry.isDirectory()) {
+                                byte[] fileBytes = zis.readAllBytes();
+                                String fullPath = entry.getName();
+
+                                List<String> parts = List.of(fullPath.split("/"));
+                                String fileName = parts.getLast();
+                                List<String> folderPath = parts.subList(0, parts.size() - 1);
+
+                                sink.next(new Image(fileBytes));
+                            }
+                        }
+                        sink.complete();
+                    } catch (IOException e) {
+                        sink.error(e);
+                    }
+                })
+                .subscribeOn(Schedulers.boundedElastic())
+                .parallel()
+                .runOn(Schedulers.parallel())
+                .flatMap(imageService::saveAndNotifyThumbnail)
+                .sequential().then();
+    }
+
+//    public Mono<Long> resolveFolderPath(List<String> folderPath) {
+//        return Flux.fromIterable(folderPath)
+//                .reduce(Mono.just((Long) null), (parentIdMono, folderName) ->
+//                        parentIdMono.flatMap(parentId -> createFolderIfNotExists(folderName, parentId))
+//                )
+//                .flatMap(parentIdMono -> parentIdMono);
+//    }
+
     public Mono<Void> handleGeneratePlaceholders(Integer placeholdersNumber) {
         return Flux.fromIterable(sessionRepository.getSessions().values())
                 .flatMap(sessionData -> sendMessage(sessionData.getSession(), new PlaceholderNumberMessage(placeholdersNumber)))
@@ -209,23 +256,23 @@ public class MessageService {
         return imageService.countImages()
                 .flatMap(count -> handleGeneratePlaceholders(count.intValue()))
                 .then(
-                     thumbnailService.getAllThumbnailsByType(message.getThumbnailType())
-                        .flatMap(thumbnail -> {
-                            try {
-                                message.setImagesData(Collections.singletonList(IconDto.from(thumbnail)));
-                                return sendMessage(session, message);
-                            } catch (Exception e) {
-                                log.error("Error while sending thumbnail message", e);
-                                return Mono.empty();
-                            }
-                        })
-                        .doOnComplete(() -> log.info("All initial thumbnails sent successfully"))
-                        .doOnError(error -> log.error("Error getting thumbnails", error))
-                        .onErrorResume(e -> {
-                            log.error("Fallback due to error", e);
-                            return Mono.error(e);
-                        })
-                        .then());
+                        thumbnailService.getAllThumbnailsByType(message.getThumbnailType())
+                                .flatMap(thumbnail -> {
+                                    try {
+                                        message.setImagesData(Collections.singletonList(IconDto.from(thumbnail)));
+                                        return sendMessage(session, message);
+                                    } catch (Exception e) {
+                                        log.error("Error while sending thumbnail message", e);
+                                        return Mono.empty();
+                                    }
+                                })
+                                .doOnComplete(() -> log.info("All initial thumbnails sent successfully"))
+                                .doOnError(error -> log.error("Error getting thumbnails", error))
+                                .onErrorResume(e -> {
+                                    log.error("Fallback due to error", e);
+                                    return Mono.error(e);
+                                })
+                                .then());
     }
 
     public Mono<Void> handleGetImage(WebSocketSession session, GetImageMessage message) {
@@ -257,9 +304,8 @@ public class MessageService {
     }
 
     public void afterConnectionEstablished(WebSocketSession session) {
-        imageService.countImages()
-                .then(sendMessage(session,
-                        new InfoResponseMessage(ResponseStatus.OK, "Connection established")))
+        sendMessage(session,
+                new InfoResponseMessage(ResponseStatus.OK, "Connection established"))
                 .then(sendPingWithDelay(session, new PingMessage()))
                 .subscribe(
                         success -> log.info("Initial connection setup completed"),

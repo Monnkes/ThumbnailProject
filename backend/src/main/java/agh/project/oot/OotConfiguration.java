@@ -7,6 +7,8 @@ import agh.project.oot.service.MessageService;
 import agh.project.oot.service.ThumbnailService;
 import agh.project.oot.thumbnails.ThumbnailConverter;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -38,9 +40,18 @@ public class OotConfiguration {
     }
 
     @Bean
-    public ObjectMapper objectMapper() {
+    public ObjectMapper objectMapper(@Value("${configuration.maxStringLength}") int maxStringLength) {
+        JsonFactory jsonFactory = Jackson2ObjectMapperBuilder.json().build().getFactory();
+
+        StreamReadConstraints constraints = StreamReadConstraints.builder()
+                .maxStringLength(maxStringLength)
+                .build();
+
+        jsonFactory.setStreamReadConstraints(constraints);
+
         return Jackson2ObjectMapperBuilder.json()
                 .serializationInclusion(JsonInclude.Include.NON_NULL)
+                .factory(jsonFactory)
                 .build();
     }
 

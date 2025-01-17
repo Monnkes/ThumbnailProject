@@ -31,22 +31,54 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({onClose, socket}) => {
 
     const handleUpload = () => {
         const base64Images: ImageData[] = [];
+        console.log(selectedFiles)
+
+        const isZipFile = (file: File) =>
+            file.type === "application/x-zip-compressed" ||
+            file.name.includes(".zip");
 
         const promises = selectedFiles.map((file) => {
-            return new Promise<ImageData>((resolve, reject) => {
+            if (isZipFile(file)) {
                 const reader = new FileReader();
+
                 reader.onload = () => {
-                    const base64Data = reader.result!.toString().split(',')[1];
-                    resolve({ data: base64Data, id: 0 });
+                    const base64Data = reader.result!.toString().split(",")[1];
+
+                    const message = {
+                        type: MessageTypes.UPLOAD_ZIP,
+                        zipData: base64Data,
+                    };
+
+                    if (socket && socket.readyState === WebSocket.OPEN) {
+                        console.log("Sending ZIP file..." + JSON.stringify(message));
+                        socket.send(JSON.stringify(message));
+                    }
                 };
-                reader.onerror = (error) => reject(error);
+
+                reader.onerror = (error) => {
+                    console.error("Error reading ZIP file: ", error);
+                };
+
                 reader.readAsDataURL(file);
-            });
+            } else {
+                return new Promise<ImageData>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const base64Data = reader.result!.toString().split(',')[1];
+                        resolve({ data: base64Data, id: 0 });
+                    };
+                    reader.onerror = (error) => reject(error);
+                    reader.readAsDataURL(file);
+                });
+            }
         });
 
         Promise.all(promises)
             .then((results) => {
-                base64Images.push(...results);
+                results
+                    ?.flat()
+                    .filter((image): image is ImageData => image !== undefined)
+                    .forEach((image) => base64Images.push(image));
 
                 if (socket && socket.readyState === WebSocket.OPEN) {
                     let currentBatch: ImageData[] = [];
@@ -101,7 +133,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({onClose, socket}) => {
                 <input
                     type="file"
                     multiple
-                    accept="image/*"
+                    accept=".zip,image/*"
                     onChange={handleFileChange}
                 />
                 <div className="buttons">
