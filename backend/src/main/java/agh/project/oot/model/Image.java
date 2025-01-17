@@ -21,6 +21,8 @@ public class Image{
     @Column("image_order")
     private Long imageOrder;
 
+    private Long folderId = 0L;
+
     public Image() {}
 
     public Image(byte[] data) {
@@ -30,5 +32,11 @@ public class Image{
     public Image(byte[] data, Long id) {
         this.data = data;
         this.id = id;
+    }
+
+    public Image(byte[] data, Long id, Long folderId) {
+        this.data = data;
+        this.id = id;
+        this.folderId = folderId;
     }
 }

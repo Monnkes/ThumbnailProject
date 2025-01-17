@@ -89,4 +89,8 @@ public class ThumbnailService {
                 .map(rowsUpdated -> rowsUpdated > 0)
                 .doOnError(error -> log.error("Error updating thumbnail order for thumbnailId: {}", thumbnail.getId(), error));
     }
+
+    public Mono<Thumbnail> findByImageIdAndType(Long imageId, ThumbnailType type) {
+        return thumbnailRepository.findByImageIdAndType(imageId, type);
+    }
 }

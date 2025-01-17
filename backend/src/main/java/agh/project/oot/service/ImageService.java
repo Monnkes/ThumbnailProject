@@ -11,6 +11,8 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -62,5 +64,17 @@ public class ImageService {
 
     public Mono<Integer> getTopImageOrder() {
         return imageRepository.getTopByOrderByImageOrderDesc();
+    }
+
+    public Flux<Image> getImagesByFolderId(Long folderId) {
+        return imageRepository.findByFolderId(folderId);
+    }
+
+    public Mono<Long> getFolderIdByImageId(Long id) {
+        var chuj = findById(id).map(image -> {
+            System.err.println("PIESEK " + image.getFolderId());
+            return image.getFolderId();
+        });
+        return chuj;
     }
 }

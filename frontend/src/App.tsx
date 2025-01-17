@@ -62,6 +62,7 @@ function App() {
                 const message = {
                     type: `GET_THUMBNAILS`,
                     thumbnailType: thumbnailTypeRef.current,
+                    folderId: 0
                 };
 
                 console.log('Sending message to server on reconnect:', message);

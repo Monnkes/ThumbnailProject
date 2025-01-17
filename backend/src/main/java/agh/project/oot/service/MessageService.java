@@ -29,12 +29,13 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -48,6 +49,7 @@ public class MessageService {
     private final ImageService imageService;
     private final AtomicLong currentImageOrder = new AtomicLong(-1);
     private final SessionRepository sessionRepository;
+    private final FolderService folderService;
 
     @Value("${controller.maxAttempts}")
     private int maxAttempts;
@@ -131,8 +133,12 @@ public class MessageService {
     public Mono<Void> sendGeneratedThumbnail(Thumbnail thumbnail) {
         var thumbnailType = thumbnail.getType();
         return Flux.fromIterable(sessionRepository.getSessions().values())
-                .filter(sessionData -> sessionData.getThumbnailType().equals(thumbnailType))
-                .map(SessionData::getSession)
+                .filter(sessionData -> sessionData.getThumbnailType() == thumbnailType)
+                .flatMap(sessionData -> imageService.getFolderIdByImageId(thumbnail.getImageId())
+                        .map(folderId -> folderId.equals(sessionData.getFolderId()))
+                        .filter(isMatch -> isMatch)
+                        .map(isMatch -> sessionData.getSession())
+                )
                 .flatMap(session ->
                         sendMessage(session, new GetThumbnailsMessage(thumbnailType, Collections.singletonList(IconDto.from(thumbnail))))
                 )
@@ -217,13 +223,27 @@ public class MessageService {
                         while ((entry = zis.getNextEntry()) != null) {
                             if (!entry.isDirectory()) {
                                 byte[] fileBytes = zis.readAllBytes();
-                                String fullPath = entry.getName();
+                                String fullPath = entry.getName(); // np. "folder1/folder2/file.jpg"
 
                                 List<String> parts = List.of(fullPath.split("/"));
-                                String fileName = parts.getLast();
+                                String fileName = parts.get(parts.size() - 1);
                                 List<String> folderPath = parts.subList(0, parts.size() - 1);
 
-                                sink.next(new Image(fileBytes));
+                                AtomicReference<Long> parentId = new AtomicReference<>(0L);
+
+                                for (String folderName : folderPath) {
+                                    Long currentParentId = parentId.get();
+
+                                    folderService.createFolderIfNotExists(folderName, currentParentId)
+                                            .doOnNext(parentId::set)
+                                            .block();
+                                }
+
+                                Long finalFolderId = parentId.get();
+
+                                Image image = new Image(fileBytes);
+                                image.setFolderId(finalFolderId);
+                                sink.next(image);
                             }
                         }
                         sink.complete();
@@ -238,14 +258,6 @@ public class MessageService {
                 .sequential().then();
     }
 
-//    public Mono<Long> resolveFolderPath(List<String> folderPath) {
-//        return Flux.fromIterable(folderPath)
-//                .reduce(Mono.just((Long) null), (parentIdMono, folderName) ->
-//                        parentIdMono.flatMap(parentId -> createFolderIfNotExists(folderName, parentId))
-//                )
-//                .flatMap(parentIdMono -> parentIdMono);
-//    }
-
     public Mono<Void> handleGeneratePlaceholders(Integer placeholdersNumber) {
         return Flux.fromIterable(sessionRepository.getSessions().values())
                 .flatMap(sessionData -> sendMessage(sessionData.getSession(), new PlaceholderNumberMessage(placeholdersNumber)))
@@ -253,26 +265,40 @@ public class MessageService {
     }
 
     public Mono<Void> handleGetAllThumbnails(WebSocketSession session, GetThumbnailsMessage message) {
-        return imageService.countImages()
-                .flatMap(count -> handleGeneratePlaceholders(count.intValue()))
-                .then(
-                        thumbnailService.getAllThumbnailsByType(message.getThumbnailType())
-                                .flatMap(thumbnail -> {
-                                    try {
-                                        message.setImagesData(Collections.singletonList(IconDto.from(thumbnail)));
-                                        return sendMessage(session, message);
-                                    } catch (Exception e) {
-                                        log.error("Error while sending thumbnail message", e);
-                                        return Mono.empty();
-                                    }
-                                })
-                                .doOnComplete(() -> log.info("All initial thumbnails sent successfully"))
-                                .doOnError(error -> log.error("Error getting thumbnails", error))
-                                .onErrorResume(e -> {
-                                    log.error("Fallback due to error", e);
-                                    return Mono.error(e);
-                                })
-                                .then());
+        Long folderId = message.getFolderId();
+        return imageService.getImagesByFolderId(folderId)
+                .collectList()
+                .flatMap(images -> {
+                    if (images.isEmpty()) {
+                        return Mono.empty();
+                    }
+                    List<Long> imageIds = images.stream()
+                            .map(Image::getId)
+                            .collect(Collectors.toList());
+
+//                    return handleGeneratePlaceholders(imageIds.size())
+//                            .then(
+                                    return Flux.fromIterable(imageIds)
+                                    .flatMap(imageId -> thumbnailService.findByImageIdAndType(imageId, message.getThumbnailType()))
+                                    .collectList()
+                                    .flatMap(thumbnails -> {
+                                        try {
+                                            message.setImagesData(thumbnails.stream()
+                                                    .map(IconDto::from)
+                                                    .collect(Collectors.toList()));
+                                            return sendMessage(session, message);
+                                        } catch (Exception e) {
+                                            log.error("Error while sending thumbnail message", e);
+                                            return Mono.empty();
+                                        }
+                                    })
+                                    .doOnError(error -> log.error("Error getting thumbnails for folder {}", folderId, error))
+                                    .onErrorResume(e -> {
+                                        log.error("Fallback due to error", e);
+                                        return Mono.error(e);
+                                    });
+                })
+                .then();
     }
 
     public Mono<Void> handleGetImage(WebSocketSession session, GetImageMessage message) {

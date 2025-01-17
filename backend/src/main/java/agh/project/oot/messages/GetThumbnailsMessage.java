@@ -14,6 +14,7 @@ import java.util.List;
 public final class GetThumbnailsMessage extends Message {
     private List<IconDto> imagesData;
     private ThumbnailType thumbnailType;
+    private Long folderId;
 
     public GetThumbnailsMessage(ThumbnailType thumbnailType) {
         this(thumbnailType, null);

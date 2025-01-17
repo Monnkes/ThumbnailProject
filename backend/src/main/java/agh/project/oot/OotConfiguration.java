@@ -1,7 +1,9 @@
 package agh.project.oot;
 
 import agh.project.oot.controller.ThumbnailController;
+import agh.project.oot.repository.FolderRepository;
 import agh.project.oot.repository.ThumbnailRepository;
+import agh.project.oot.service.FolderService;
 import agh.project.oot.service.ImageService;
 import agh.project.oot.service.MessageService;
 import agh.project.oot.service.ThumbnailService;
@@ -40,6 +42,11 @@ public class OotConfiguration {
     }
 
     @Bean
+    public FolderService folderService(FolderRepository folderRepository) {
+        return new FolderService(folderRepository);
+    }
+
+    @Bean
     public ObjectMapper objectMapper(@Value("${configuration.maxStringLength}") int maxStringLength) {
         JsonFactory jsonFactory = Jackson2ObjectMapperBuilder.json().build().getFactory();
 
@@ -60,8 +67,9 @@ public class OotConfiguration {
                                          ImageSink imageSink,
                                          ThumbnailService thumbnailService,
                                          ImageService imageService,
-                                         SessionRepository sessionRepository) {
-        return new MessageService(objectMapper, imageSink, thumbnailService, imageService, sessionRepository);
+                                         SessionRepository sessionRepository,
+                                         FolderService folderService) {
+        return new MessageService(objectMapper, imageSink, thumbnailService, imageService, sessionRepository, folderService);
     }
 
     @Bean

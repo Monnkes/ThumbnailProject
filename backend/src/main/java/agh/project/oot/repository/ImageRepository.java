@@ -5,6 +5,7 @@ import org.springframework.data.r2dbc.repository.Modifying;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Repository
@@ -16,4 +17,6 @@ public interface ImageRepository extends ReactiveCrudRepository<Image, Long> {
 
     @Query("SELECT MAX(image_order) FROM postgres.public.images")
     Mono<Integer> getTopByOrderByImageOrderDesc();
+
+    Flux<Image> findByFolderId(Long folderId);
 }

@@ -3,6 +3,7 @@ package agh.project.oot.controller;
 import agh.project.oot.ResponseStatus;
 import agh.project.oot.SessionRepository;
 import agh.project.oot.messages.*;
+import agh.project.oot.service.FolderService;
 import agh.project.oot.service.MessageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

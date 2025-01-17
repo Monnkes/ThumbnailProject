@@ -11,6 +11,8 @@ public class SessionData {
 
     @Setter
     private ThumbnailType thumbnailType;
+    @Setter
+    private Long folderId = 0L;
 
     public SessionData(WebSocketSession session, ThumbnailType thumbnailType) {
         this.session = session;
