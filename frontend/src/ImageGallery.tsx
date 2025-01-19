@@ -3,11 +3,13 @@ import SelectedImage from './SelectedImage';
 import './styles/ImageGallery.css';
 import configuration from './frontendConfiguration.json';
 import {ThumbnailSize, ThumbnailType} from "./utils/ThumbnailProperties";
+import MessageTypes from "./utils/MessageTypes";
 
 interface ImageGalleryProps {
     images: ImageData[];
     originalImage: ImageData;
     socket: WebSocket | null;
+    setImages: Dispatch<SetStateAction<ImageData[]>>;
     setOriginalImage: Dispatch<SetStateAction<ImageData>>;
     thumbnailTypeRef: React.MutableRefObject<ThumbnailType>;
 }
@@ -22,6 +24,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
                                                        images,
                                                        originalImage,
                                                        socket,
+                                                       setImages,
                                                        setOriginalImage,
                                                        thumbnailTypeRef
                                                    }) => {
@@ -29,12 +32,28 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
     const [selectedImage, setSelectedImage] = useState<ImageData | null>(null);
 
     const handleImageClick = (image: string, index: number) => {
-        setSelectedImage({ data: image, id: index, iconOrder: index});
+        setSelectedImage({data: image, id: index, iconOrder: index});
         setShowPopup(true);
     };
 
+    const handleDelete = (imageId: number) => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            const updatedImages = images.filter(image => image.id !== imageId);
+
+            setImages(updatedImages);
+
+            const message = {
+                type: MessageTypes.DELETE_IMAGE,
+                id: imageId,
+            };
+            console.log('Sending delete message to server:', message);
+            socket.send(JSON.stringify(message));
+        }
+    };
+
+
     const handleClosePopup = () => {
-        setOriginalImage({ data: configuration.loadingIcon, id: 0, iconOrder: -1 });
+        setOriginalImage({data: configuration.loadingIcon, id: 0, iconOrder: -1});
         setShowPopup(false);
     };
 
@@ -53,7 +72,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
 
     // TODO check the key must be '0' (should be base64Image.id)
     return (
-        <div className="gallery" style={{ gridTemplateColumns: getGridTemplateColumns() }}>
+        <div className="gallery" style={{gridTemplateColumns: getGridTemplateColumns()}}>
             {images.map((base64Image) => (
                 <div
                     key={0}
@@ -61,6 +80,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
                     style={{
                         width: ThumbnailSize[thumbnailTypeRef.current].width,
                         height: ThumbnailSize[thumbnailTypeRef.current].height,
+                        position: "relative",
                     }}
                 >
                     <img
@@ -69,6 +89,19 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
                         className="image"
                         onClick={() => handleImageClick(base64Image.data, base64Image.id)}
                     />
+                    <div className="image-options">
+                        <button
+                            className="delete-button"
+                            onClick={() => handleDelete(base64Image.id)}
+                        >
+                            X
+                        </button>
+                        <input
+                            className="move-checkbox"
+                            type="checkbox"
+                            // onChange={(e) => handleCheckboxChange(base64Image.id, e.target.checked)}
+                        />
+                    </div>
                 </div>
             ))}
 

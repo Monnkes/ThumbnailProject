@@ -46,8 +46,8 @@ public class ImageService {
                 .doOnError(error -> log.error("Error removing image from database", error));
     }
 
-    public Mono<Long> countImages() {
-        return imageRepository.count()
+    public Mono<Long> countImagesByFolderId(Long folderId) {
+        return imageRepository.countByFolderId(folderId)
                 .doOnError(error -> log.error("Error counting images in database", error));
     }
 
@@ -71,10 +71,6 @@ public class ImageService {
     }
 
     public Mono<Long> getFolderIdByImageId(Long id) {
-        var chuj = findById(id).map(image -> {
-            System.err.println("PIESEK " + image.getFolderId());
-            return image.getFolderId();
-        });
-        return chuj;
+        return findById(id).map(Image::getFolderId);
     }
 }

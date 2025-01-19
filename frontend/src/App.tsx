@@ -60,7 +60,7 @@ function App() {
                 }
 
                 const message = {
-                    type: `GET_THUMBNAILS`,
+                    type: MessageTypes.GET_THUMBNAILS,
                     thumbnailType: thumbnailTypeRef.current,
                     folderId: 0
                 };
@@ -94,39 +94,46 @@ function App() {
                                 : prevImages;
                         });
                     }
-            }
-
-            if (data.messageType === MessageTypes.PLACEHOLDERS_NUMBER_RESPONSE) {
-                if (data.thumbnailsNumber !== null && data.thumbnailsNumber > 0) {
-                    addIcons(data.thumbnailsNumber);
-                    addThumbnails(thumbnailsMagazine);
                 }
-            }
 
-            if (data.messageType === MessageTypes.GET_THUMBNAILS && data.imagesData) {
-                if (data.thumbnailType === thumbnailTypeRef.current) {
-                    if (imagesRef.current.length === 0) {
-                        setThumbnailsMagazine((prevMagazine) => [
-                            ...prevMagazine,
-                            ...data.imagesData.map((thumbnail: ImageData) => ({
-                                id: thumbnail.id,
-                                data: thumbnail.data,
-                                iconOrder: thumbnail.iconOrder
-                            }))
-                        ]);
-                        console.log('Thumbnails added to magazine: ', data.imagesData);
-                    } else {
-                        addThumbnails(
-                            data.imagesData.map((thumbnail: ImageData) => ({
-                                id: thumbnail.id,
-                                data: thumbnail.data,
-                                iconOrder: thumbnail.iconOrder
-                            }))
-                        );
+                if (data.messageType === MessageTypes.PLACEHOLDERS_NUMBER_RESPONSE) {
+                    if (data.thumbnailsNumber !== null && data.thumbnailsNumber > 0) {
+                        addIcons(data.thumbnailsNumber);
+                        addThumbnails(thumbnailsMagazine);
                     }
                 }
-            }
-        };
+
+                if (data.messageType === MessageTypes.DELETE_IMAGE_RESPONSE) {
+                    if (data.id !== null) {
+                        const updatedImages = imagesRef.current.filter(image => image.id !== data.id);
+                        setImages(updatedImages);
+                    }
+                }
+
+                if (data.messageType === MessageTypes.GET_THUMBNAILS && data.imagesData) {
+                    if (data.thumbnailType === thumbnailTypeRef.current) {
+                        if (imagesRef.current.length === 0) {
+                            setThumbnailsMagazine((prevMagazine) => [
+                                ...prevMagazine,
+                                ...data.imagesData.map((thumbnail: ImageData) => ({
+                                    id: thumbnail.id,
+                                    data: thumbnail.data,
+                                    iconOrder: thumbnail.iconOrder
+                                }))
+                            ]);
+                            console.log('Thumbnails added to magazine: ', data.imagesData);
+                        } else {
+                            addThumbnails(
+                                data.imagesData.map((thumbnail: ImageData) => ({
+                                    id: thumbnail.id,
+                                    data: thumbnail.data,
+                                    iconOrder: thumbnail.iconOrder
+                                }))
+                            );
+                        }
+                    }
+                }
+            };
 
             ws.onclose = () => {
                 console.log('Connection closed. Attempting to reconnect...');
@@ -164,8 +171,10 @@ function App() {
         console.log(`New thumbnails type: ${thumbnailTypeRef.current}`)
         if (socket && socket.readyState === WebSocket.OPEN) {
             const message = {
-                type: `GET_THUMBNAILS`,
+                type: MessageTypes.GET_THUMBNAILS,
                 thumbnailType: thumbnailTypeRef.current,
+                // TODO Fix it
+                folderId: 0
             };
             console.log('Sending message to server:', message);
             socket.send(JSON.stringify(message));
@@ -185,7 +194,7 @@ function App() {
         });
     };
 
-    const addThumbnails = (thumbnails: ImageData[]) => {
+    const  addThumbnails = (thumbnails: ImageData[]) => {
         setImages(prevImages => {
             const updatedImages = [...prevImages];
 
@@ -260,6 +269,7 @@ function App() {
                 images={images}
                 originalImage={originalImage}
                 socket={socket}
+                setImages={setImages}
                 setOriginalImage={setOriginalImage}
                 thumbnailTypeRef={thumbnailTypeRef}
             />

@@ -66,6 +66,21 @@ public class ThumbnailService {
                 .publishOn(Schedulers.parallel());
     }
 
+    public Flux<Thumbnail> getAllThumbnails() {
+        return thumbnailRepository.findAll()
+                .publishOn(Schedulers.parallel());
+    }
+
+    public Flux<Thumbnail> removeAllThumbnailsByImageId(Long imageId) {
+        return thumbnailRepository.removeAllByImageId(imageId)
+                .publishOn(Schedulers.parallel());
+    }
+
+    public Mono<Thumbnail> getThumbnailByThumbnailId(Long thumbnailId) {
+        return thumbnailRepository.findById(thumbnailId)
+                .publishOn(Schedulers.parallel());
+    }
+
     /**
      * Retrieves an image associated with a given thumbnail ID.
      *
@@ -73,7 +88,7 @@ public class ThumbnailService {
      * @return a Mono of the image associated with the thumbnail.
      */
     public Mono<Image> getImageByThumbnailId(Long thumbnailId) {
-        return thumbnailRepository.findById(thumbnailId)
+        return getThumbnailByThumbnailId(thumbnailId)
                 .flatMap(thumbnail -> imageService.findById(thumbnail.getImageId())
                         .switchIfEmpty(Mono.error(new IllegalArgumentException("Image with ID " + thumbnail.getImageId() + " not found"))))
                 .switchIfEmpty(Mono.error(new NoSuchElementException("Thumbnail with ID " + thumbnailId + " not found")));

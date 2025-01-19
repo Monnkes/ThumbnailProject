@@ -8,9 +8,9 @@ import lombok.Setter;
 @Getter
 @Setter
 public final class PlaceholderNumberMessage extends Message {
-    private Integer thumbnailsNumber;
+    private Long thumbnailsNumber;
 
-    public PlaceholderNumberMessage(Integer thumbnailsNumber) {
+    public PlaceholderNumberMessage(Long thumbnailsNumber) {
         super(ConnectionStatus.CONNECTED, ResponseStatus.OK, MessageType.PLACEHOLDERS_NUMBER_RESPONSE);
         this.thumbnailsNumber = thumbnailsNumber;
     }

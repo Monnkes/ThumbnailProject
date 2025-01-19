@@ -16,13 +16,14 @@ public final class GetThumbnailsMessage extends Message {
     private ThumbnailType thumbnailType;
     private Long folderId;
 
-    public GetThumbnailsMessage(ThumbnailType thumbnailType) {
-        this(thumbnailType, null);
+    public GetThumbnailsMessage(ThumbnailType thumbnailType, Long folderId) {
+        this(thumbnailType, null, folderId);
     }
 
-    public GetThumbnailsMessage(ThumbnailType thumbnailType, List<IconDto> imagesData) {
+    public GetThumbnailsMessage(ThumbnailType thumbnailType, List<IconDto> imagesData, Long folderId) {
         super(ConnectionStatus.CONNECTED, ResponseStatus.OK, MessageType.GET_THUMBNAILS);
         this.thumbnailType = thumbnailType;
         this.imagesData = imagesData;
+        this.folderId = folderId;
     }
 }

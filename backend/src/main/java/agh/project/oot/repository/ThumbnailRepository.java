@@ -13,6 +13,7 @@ import reactor.core.publisher.Mono;
 public interface ThumbnailRepository extends ReactiveCrudRepository<Thumbnail, Long> {
     Flux<Thumbnail> findByType(ThumbnailType type);
     Mono<Thumbnail> findByImageIdAndType(Long imageId, ThumbnailType type);
+    Flux<Thumbnail> removeAllByImageId(Long imageId);
 
     // TODO replace query by sth smarter
     @Modifying

@@ -44,6 +44,7 @@ public class ThumbnailController extends AbstractWebSocketHandler {
                     case UploadZipMessage uploadZipMessage -> messageService.handleUploadZip(uploadZipMessage);
                     case GetThumbnailsMessage getThumbnailsMessage -> setThumbnailTypeAndResponse(session, getThumbnailsMessage);
                     case GetImageMessage getImageMessage -> messageService.handleGetImage(session, getImageMessage);
+                    case DeleteImageMessage deleteImageMessage -> messageService.handleDeleteImage(deleteImageMessage);
                     case PingMessage pingMessage -> messageService.sendPingWithDelay(session, pingMessage);
                     case InfoResponseMessage infoResponseMessage ->
                             messageService.sendBadRequest(session, "Unknown message type", ResponseStatus.UNSUPPORTED_MEDIA_TYPE);
