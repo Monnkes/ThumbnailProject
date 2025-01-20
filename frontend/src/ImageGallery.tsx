@@ -4,6 +4,7 @@ import './styles/ImageGallery.css';
 import configuration from './frontendConfiguration.json';
 import {ThumbnailSize, ThumbnailType} from "./utils/ThumbnailProperties";
 import MessageTypes from "./utils/MessageTypes";
+import texts from './texts/texts.json';
 
 interface ImageGalleryProps {
     images: ImageData[];
@@ -38,10 +39,6 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
 
     const handleDelete = (imageId: number) => {
         if (socket && socket.readyState === WebSocket.OPEN) {
-            const updatedImages = images.filter(image => image.id !== imageId);
-
-            setImages(updatedImages);
-
             const message = {
                 type: MessageTypes.DELETE_IMAGE,
                 id: imageId,
@@ -94,7 +91,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
                             className="delete-button"
                             onClick={() => handleDelete(base64Image.id)}
                         >
-                            X
+                            {texts.cross}
                         </button>
                         <input
                             className="move-checkbox"

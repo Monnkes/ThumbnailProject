@@ -105,8 +105,8 @@ function App() {
 
                 if (data.messageType === MessageTypes.DELETE_IMAGE_RESPONSE) {
                     if (data.id !== null) {
-                        const updatedImages = imagesRef.current.filter(image => image.id !== data.id);
-                        setImages(updatedImages);
+                        imagesRef.current.pop();
+                        setImages([...imagesRef.current]);
                     }
                 }
 
@@ -121,7 +121,6 @@ function App() {
                                     iconOrder: thumbnail.iconOrder
                                 }))
                             ]);
-                            console.log('Thumbnails added to magazine: ', data.imagesData);
                         } else {
                             addThumbnails(
                                 data.imagesData.map((thumbnail: ImageData) => ({

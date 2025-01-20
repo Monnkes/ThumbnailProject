@@ -11,7 +11,6 @@ import java.util.List;
 @Getter
 @Setter
 public final class DeleteImageMessage extends Message {
-    // TODO Consider using Long instance List
     private Long id;
 
     public DeleteImageMessage(Long id) {

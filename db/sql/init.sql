@@ -3,8 +3,8 @@
 CREATE TABLE images (
     id SERIAL PRIMARY KEY,
     data BYTEA NOT NULL,
-    image_order INT UNIQUE,
-    folder_id INT
+    image_order INT,
+    folder_id INT NOT NULL
 );
 
 CREATE TABLE thumbnails (
@@ -18,6 +18,6 @@ CREATE TABLE thumbnails (
 
 CREATE TABLE folders (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(255),
-    parent_id BIGINT
+    name VARCHAR(255) NOT NULL,
+    parent_id BIGINT NOT NULL
 );

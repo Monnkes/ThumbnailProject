@@ -18,10 +18,6 @@ public class Folder {
 
     public Folder() {}
 
-    public Folder(String name) {
-        this.name = name;
-    }
-
     public Folder(String name, Long parentId) {
         this.name = name;
         this.parentId = parentId;

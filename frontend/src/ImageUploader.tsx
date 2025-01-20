@@ -31,7 +31,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({onClose, socket}) => {
 
     const handleUpload = () => {
         const base64Images: ImageData[] = [];
-        console.log(selectedFiles)
 
         const isZipFile = (file: File) =>
             file.type === "application/x-zip-compressed" ||
@@ -50,7 +49,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({onClose, socket}) => {
                     };
 
                     if (socket && socket.readyState === WebSocket.OPEN) {
-                        console.log("Sending ZIP file..." + JSON.stringify(message));
                         socket.send(JSON.stringify(message));
                     }
                 };

@@ -4,10 +4,11 @@
   "cancel": "Cancel",
   "addPhotos": "Add Photos",
   "uploadImages": "Upload Images",
-  "uploadFailure" : "Failed to upload unsupported image!",
-  "maxBatchesLimit" : "Too many data! Some images won't be uploaded!",
-  "tooLargeImage" : "Image is too large!",
-  "small" : "Small",
-  "medium" : "Medium",
-  "big" : "Big"
+  "uploadFailure": "Failed to upload unsupported image!",
+  "maxBatchesLimit": "Too many data! Some images won't be uploaded!",
+  "tooLargeImage": "Image is too large!",
+  "small": "Small",
+  "medium": "Medium",
+  "big": "Big",
+  "cross": "X"
 }

@@ -11,8 +11,6 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -58,12 +56,8 @@ public class ImageService {
                 .doOnError(error -> log.error("Error updating image order for imageId: {}", image.getId(), error));
     }
 
-    public Mono<Long> getImageOrderById(Long id) {
-        return findById(id).map(Image::getImageOrder);
-    }
-
-    public Mono<Integer> getTopImageOrder() {
-        return imageRepository.getTopByOrderByImageOrderDesc();
+    public Mono<Long> findTopByFolderIdOrderByImageOrderDesc(Long folderId) {
+        return imageRepository.findTopByFolderIdOrderByImageOrderDesc(folderId);
     }
 
     public Flux<Image> getImagesByFolderId(Long folderId) {

@@ -31,11 +31,9 @@ import java.io.InputStream;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -47,9 +45,9 @@ public class MessageService {
     private final ImageSink imageSink;
     private final ThumbnailService thumbnailService;
     private final ImageService imageService;
-    private final AtomicLong currentImageOrder = new AtomicLong(-1);
     private final SessionRepository sessionRepository;
     private final FolderService folderService;
+    private final ImageOrderService imageOrderService;
 
     @Value("${controller.maxAttempts}")
     private int maxAttempts;
@@ -60,6 +58,7 @@ public class MessageService {
     @Value("${controller.delay}")
     private int delay;
 
+    //TODO Create dedicated class for this method
     @EventListener(ApplicationReadyEvent.class)
     public void listenForNewImages() {
         imageSink.getSink().asFlux()
@@ -80,7 +79,7 @@ public class MessageService {
     public Mono<Void> processAndNotifyMissingThumbnails() {
         log.info("Processing and notifying about missing thumbnails...");
 
-        return messageServiceSetup()
+        return imageOrderService.initializeImageOrder()
                 .then(
                         thumbnailService.generateMissingThumbnails()
                                 .flatMap(tuple -> processImage(tuple.getT2(), tuple.getT1()))
@@ -89,13 +88,6 @@ public class MessageService {
                 .doOnSuccess(unused -> log.info("Finished notifying clients about all missing thumbnails."))
                 .onErrorContinue((error, item) -> handleException(error));
     }
-
-    private Mono<Void> messageServiceSetup() {
-        return imageService.getTopImageOrder()
-                .doOnNext(currentImageOrder::set)
-                .then();
-    }
-
 
     private void handleException(Throwable error) {
         log.error("Error processing image: {}", error.getMessage());
@@ -113,11 +105,12 @@ public class MessageService {
 
     private Mono<Void> processImage(Thumbnail thumbnail, Image image) {
         return getImageOrder(image)
-                .switchIfEmpty(Mono.defer(() -> Mono.fromCallable(currentImageOrder::incrementAndGet)
-                        .flatMap(upgradedImageOrder -> imageService.updateImageOrder(image, upgradedImageOrder)
-                                .doOnError(e -> log.error("Error updating image order: {}", e.getMessage()))
-                                .thenReturn(upgradedImageOrder)
-                        )))
+                .switchIfEmpty(
+                        imageOrderService.getNextImageOrder(image.getFolderId())
+                                .flatMap(upgradedImageOrder -> imageService.updateImageOrder(image, upgradedImageOrder)
+                                        .doOnError(e -> log.error("Error updating image order: {}", e.getMessage()))
+                                        .thenReturn(upgradedImageOrder)
+                                ))
                 .flatMap(imageOrder ->
                         thumbnailService.updateThumbnailOrder(thumbnail, imageOrder)
                                 .doOnError(e -> log.error("Error updating thumbnail order: {}", e.getMessage()))
@@ -311,7 +304,9 @@ public class MessageService {
         return thumbnailService.getThumbnailByThumbnailId(message.getId())
                 .map(Thumbnail::getImageId)
                 .flatMap(imageId -> thumbnailService.removeAllThumbnailsByImageId(imageId)
-                        .then(Mono.when(imageService.removeById(imageId), sendDeleteMessageResponse(message.getId()))))
+                        .then(imageOrderService.recountImageOrder(imageId))
+                        .then(Mono.when(imageService.removeById(imageId), sendDeleteMessageResponse(message.getId())))
+                )
                 .then(
                         thumbnailService.getAllThumbnails()
                                 .flatMap(this::sendThumbnailForAll)

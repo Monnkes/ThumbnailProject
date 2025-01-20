@@ -8,7 +8,6 @@ import lombok.Setter;
 @Getter
 @Setter
 public final class DeleteImageResponseMessage extends Message {
-    // TODO Consider using Long instance List
     private Long id;
 
     public DeleteImageResponseMessage(Long id) {

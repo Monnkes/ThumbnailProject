@@ -6,12 +6,10 @@ import lombok.Setter;
 import org.springframework.web.socket.WebSocketSession;
 
 @Getter
+@Setter
 public class SessionData {
     private final WebSocketSession session;
-
-    @Setter
     private ThumbnailType thumbnailType;
-    @Setter
     private Long folderId = 0L;
 
     public SessionData(WebSocketSession session, ThumbnailType thumbnailType) {

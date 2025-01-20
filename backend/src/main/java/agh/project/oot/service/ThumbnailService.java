@@ -71,6 +71,11 @@ public class ThumbnailService {
                 .publishOn(Schedulers.parallel());
     }
 
+    public Flux<Thumbnail> getAllThumbnailsByImageId(Long imageId) {
+        return thumbnailRepository.findByImageId(imageId)
+                .publishOn(Schedulers.parallel());
+    }
+
     public Flux<Thumbnail> removeAllThumbnailsByImageId(Long imageId) {
         return thumbnailRepository.removeAllByImageId(imageId)
                 .publishOn(Schedulers.parallel());

@@ -33,10 +33,4 @@ public class Image{
         this.data = data;
         this.id = id;
     }
-
-    public Image(byte[] data, Long id, Long folderId) {
-        this.data = data;
-        this.id = id;
-        this.folderId = folderId;
-    }
 }

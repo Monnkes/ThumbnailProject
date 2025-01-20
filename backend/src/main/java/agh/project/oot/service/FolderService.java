@@ -24,7 +24,11 @@ public class FolderService {
                 });
     }
 
-    public Mono<Folder> getFolder(Long id) {
+    public Flux<Folder> getFolders() {
+        return folderRepository.findAll();
+    }
+
+    public Mono<Folder> findById(Long id) {
         return folderRepository.findById(id);
     }
 
@@ -33,7 +37,6 @@ public class FolderService {
     }
 
     public Mono<Long> createFolderIfNotExists(String folderName, Long parentId) {
-        // Sprawdź, czy folder istnieje, jeśli nie, utwórz go i zwróć jego id
         return folderRepository.findByNameAndParentId(folderName, parentId)
                 .switchIfEmpty(folderRepository.save(new Folder(folderName, parentId)))
                 .map(Folder::getId);

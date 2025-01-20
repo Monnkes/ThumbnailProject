@@ -3,10 +3,7 @@ package agh.project.oot;
 import agh.project.oot.controller.ThumbnailController;
 import agh.project.oot.repository.FolderRepository;
 import agh.project.oot.repository.ThumbnailRepository;
-import agh.project.oot.service.FolderService;
-import agh.project.oot.service.ImageService;
-import agh.project.oot.service.MessageService;
-import agh.project.oot.service.ThumbnailService;
+import agh.project.oot.service.*;
 import agh.project.oot.thumbnails.ThumbnailConverter;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonFactory;
@@ -47,6 +44,12 @@ public class OotConfiguration {
     }
 
     @Bean
+    public ImageOrderService imageOrderService(FolderService folderService, ImageService imageService,
+                                               ThumbnailService thumbnailService) {
+        return new ImageOrderService(folderService, imageService, thumbnailService);
+    }
+
+    @Bean
     public ObjectMapper objectMapper(@Value("${configuration.maxStringLength}") int maxStringLength) {
         JsonFactory jsonFactory = Jackson2ObjectMapperBuilder.json().build().getFactory();
 
@@ -68,8 +71,10 @@ public class OotConfiguration {
                                          ThumbnailService thumbnailService,
                                          ImageService imageService,
                                          SessionRepository sessionRepository,
-                                         FolderService folderService) {
-        return new MessageService(objectMapper, imageSink, thumbnailService, imageService, sessionRepository, folderService);
+                                         FolderService folderService,
+                                         ImageOrderService imageOrderService) {
+        return new MessageService(objectMapper, imageSink, thumbnailService, imageService,
+                sessionRepository, folderService, imageOrderService);
     }
 
     @Bean

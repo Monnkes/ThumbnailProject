@@ -15,8 +15,7 @@ public interface ImageRepository extends ReactiveCrudRepository<Image, Long> {
     @Query("UPDATE images SET image_order = :imageOrder WHERE id = :imageId")
     Mono<Integer> updateImageOrder(Long imageId, Long imageOrder);
 
-    @Query("SELECT MAX(image_order) FROM postgres.public.images")
-    Mono<Integer> getTopByOrderByImageOrderDesc();
+    Mono<Long> findTopByFolderIdOrderByImageOrderDesc(Long folderId);
 
     Flux<Image> findByFolderId(Long folderId);
 
