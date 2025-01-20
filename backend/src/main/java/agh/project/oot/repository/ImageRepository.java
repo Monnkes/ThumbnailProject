@@ -19,5 +19,7 @@ public interface ImageRepository extends ReactiveCrudRepository<Image, Long> {
 
     Flux<Image> findByFolderId(Long folderId);
 
+    Flux<Image> findByFolderIdOrderByImageOrder(Long folderId);
+
     Mono<Long> countByFolderId(Long folderId);
 }

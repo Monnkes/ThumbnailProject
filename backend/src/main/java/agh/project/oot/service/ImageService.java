@@ -64,6 +64,10 @@ public class ImageService {
         return imageRepository.findByFolderId(folderId);
     }
 
+    public Flux<Image> getImagesByFolderIdOrderByImageOrder(Long folderId) {
+        return imageRepository.findByFolderIdOrderByImageOrder(folderId);
+    }
+
     public Mono<Long> getFolderIdByImageId(Long id) {
         return findById(id).map(Image::getFolderId);
     }

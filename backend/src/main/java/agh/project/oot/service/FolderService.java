@@ -32,6 +32,11 @@ public class FolderService {
         return folderRepository.findById(id);
     }
 
+    public Mono<Long> getParentId(Long id) {
+        return id == 0 ? Mono.just(0L) : findById(id).map(Folder::getParentId);
+    }
+
+
     public Flux<Folder> getSubfolders(Long parentId) {
         return folderRepository.findByParentId(parentId);
     }

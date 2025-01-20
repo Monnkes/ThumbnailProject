@@ -8,11 +8,14 @@ import texts from './texts/texts.json';
 
 interface ImageGalleryProps {
     images: ImageData[];
+    folders: ImageData[];
     originalImage: ImageData;
     socket: WebSocket | null;
     setImages: Dispatch<SetStateAction<ImageData[]>>;
     setOriginalImage: Dispatch<SetStateAction<ImageData>>;
     thumbnailTypeRef: React.MutableRefObject<ThumbnailType>;
+    currentFolderIdRef: React.MutableRefObject<number>;
+    numberOfThumbnailsRef: React.MutableRefObject<number>;
 }
 
 interface ImageData {
@@ -23,11 +26,14 @@ interface ImageData {
 
 const ImageGallery: React.FC<ImageGalleryProps> = ({
                                                        images,
+                                                       folders,
                                                        originalImage,
                                                        socket,
                                                        setImages,
                                                        setOriginalImage,
-                                                       thumbnailTypeRef
+                                                       thumbnailTypeRef,
+                                                       currentFolderIdRef,
+                                                       numberOfThumbnailsRef
                                                    }) => {
     const [showPopup, setShowPopup] = useState(false);
     const [selectedImage, setSelectedImage] = useState<ImageData | null>(null);
@@ -35,6 +41,23 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
     const handleImageClick = (image: string, index: number) => {
         setSelectedImage({data: image, id: index, iconOrder: index});
         setShowPopup(true);
+    };
+
+    const handleFolderClick = (folderId: number) => {
+        setImages([]);
+        numberOfThumbnailsRef.current = 0;
+        currentFolderIdRef.current = folderId;
+
+        const message = {
+            type: MessageTypes.GET_THUMBNAILS,
+            thumbnailType: thumbnailTypeRef.current,
+            folderId: folderId
+        };
+
+        console.log('Sending message to server on folder click:', message);
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify(message));
+        }
     };
 
     const handleDelete = (imageId: number) => {
@@ -70,6 +93,36 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
     // TODO check the key must be '0' (should be base64Image.id)
     return (
         <div className="gallery" style={{gridTemplateColumns: getGridTemplateColumns()}}>
+            {folders.map((folder) => (
+                <div
+                    key={0}
+                    className="folder-container"
+                    style={{
+                        width: ThumbnailSize[thumbnailTypeRef.current].width,
+                        height: ThumbnailSize[thumbnailTypeRef.current].height,
+                        position: "relative",
+                    }}
+                >
+                    <div className="folder">
+                        <img
+                            src={`data:image/png;base64,${folder.data}`}
+                            alt={`Folder ${folder.id}`}
+                            className="image"
+                            onClick={() => handleFolderClick(folder.id)}
+                        />
+                        <div className="folder-id">
+                            {folder.id}
+                        </div>                    </div>
+                    <div className="folder-options">
+                        <button
+                            className="delete-button"
+                            // onClick={() => handleDeleteFolder(folder.id)}
+                        >
+                            {texts.cross}
+                        </button>
+                    </div>
+                </div>
+            ))}
             {images.map((base64Image) => (
                 <div
                     key={0}

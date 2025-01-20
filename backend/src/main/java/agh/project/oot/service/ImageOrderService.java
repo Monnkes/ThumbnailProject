@@ -46,7 +46,7 @@ public class ImageOrderService {
     }
 
     public Mono<Void> recountImageOrder(Long folderId, Long imageId) {
-        return imageService.getImagesByFolderId(folderId)
+        return imageService.getImagesByFolderIdOrderByImageOrder(folderId)
                 .filter(image -> !Objects.equals(image.getId(), imageId))
                 .flatMap(image ->
                         {
@@ -59,8 +59,6 @@ public class ImageOrderService {
     }
 
     public Mono<Void> recountThumbnailOrder(Long imageId, Long newOrderId) {
-        System.err.println("New thumbnail order: " + newOrderId + "img: " + imageId);
-
         return thumbnailService.getAllThumbnailsByImageId(imageId)
                 .flatMap(thumbnail ->
                         thumbnailService.updateThumbnailOrder(thumbnail, newOrderId)

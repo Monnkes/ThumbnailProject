@@ -2,10 +2,7 @@ package agh.project.oot.service;
 
 import agh.project.oot.*;
 import agh.project.oot.messages.*;
-import agh.project.oot.model.IconDto;
-import agh.project.oot.model.Image;
-import agh.project.oot.model.Thumbnail;
-import agh.project.oot.model.ThumbnailType;
+import agh.project.oot.model.*;
 import agh.project.oot.thumbnails.UnsupportedImageFormatException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -150,7 +147,7 @@ public class MessageService {
                                 }));
                         case UPLOAD_ZIP ->
                                 new UploadZipMessage(objectMapper.convertValue(messageMap.get("zipData"), new TypeReference<>() {
-                                }));
+                                }), Long.valueOf((Integer) messageMap.get("folderId")));
                         case GET_THUMBNAILS ->
                                 new GetThumbnailsMessage(ThumbnailType.valueOf((String) messageMap.get("thumbnailType")),
                                         Long.valueOf((Integer) messageMap.get("folderId")));
@@ -161,7 +158,7 @@ public class MessageService {
                                 new DeleteImageMessage(objectMapper.convertValue(messageMap.get("id"), new TypeReference<>() {
                                 }));
                         case PONG -> new PingMessage();
-                        case PLACEHOLDERS_NUMBER_RESPONSE, DELETE_IMAGE_RESPONSE, INFO_RESPONSE, PING ->
+                        case PLACEHOLDERS_NUMBER_RESPONSE, DELETE_IMAGE_RESPONSE, INFO_RESPONSE, FOLDERS_RESPONSE, PING ->
                                 new InfoResponseMessage(ResponseStatus.UNSUPPORTED_MEDIA_TYPE);
                     };
                 })
@@ -251,7 +248,8 @@ public class MessageService {
                 .parallel()
                 .runOn(Schedulers.parallel())
                 .flatMap(imageService::saveAndNotifyThumbnail)
-                .sequential().then();
+                .sequential()
+                .then(Mono.defer(() -> sendFoldersForAll(message.getFolderId())));
     }
 
     public Mono<Void> handleGeneratePlaceholdersForAll(Long placeholdersNumber) {
@@ -265,11 +263,36 @@ public class MessageService {
                 .then();
     }
 
+    public Mono<Void> sendFoldersForAll(Long folderId) {
+        return folderService.getSubfolders(folderId)
+                .map(Folder::getId)
+                .sort()
+                .collectList()
+                .flatMap(folderIds ->
+                        Flux.fromIterable(sessionRepository.getSessions().values())
+                                .filter(sessionData -> sessionData.getFolderId().equals(folderId))
+                                .flatMap(sessionData ->
+                                        folderService.getParentId(folderId)
+                                                .flatMap(parentId -> sendMessage(sessionData.getSession(),
+                                                        new FoldersResponseMessage(folderIds, folderId, parentId)))
+                                )
+                                .then()
+                );
+    }
+
     public Mono<Void> handleGetAllThumbnails(WebSocketSession session, GetThumbnailsMessage message) {
         Long folderId = message.getFolderId();
 
         Mono<Void> placeholdersGenerated = imageService.countImagesByFolderId(folderId)
                 .flatMap(thumbnailsNumber -> handleGeneratePlaceholdersBySession(session, thumbnailsNumber))
+                .then();
+
+        Mono<Void> foldersResponse = folderService.getSubfolders(folderId)
+                .map(Folder::getId)
+                .sort()
+                .collectList()
+                .flatMap(folders -> folderService.getParentId(folderId)
+                        .flatMap(parentId -> sendMessage(session, new FoldersResponseMessage(folders, folderId, parentId))))
                 .then();
 
         Mono<Void> thumbnailsGenerated = imageService.getImagesByFolderId(folderId)
@@ -286,7 +309,8 @@ public class MessageService {
                 })
                 .then();
 
-        return placeholdersGenerated.then(thumbnailsGenerated);
+        return Mono.when(placeholdersGenerated, foldersResponse)
+                .then(thumbnailsGenerated);
     }
 
     public Mono<Void> handleGetImage(WebSocketSession session, GetImageMessage message) {
@@ -338,6 +362,7 @@ public class MessageService {
         if (error.getClass() == UnsupportedImageFormatException.class || error.getClass() == UnsupportedFormatException.class) {
             return sendBadRequest(session, "Internal error: " + error.getMessage(), ResponseStatus.UNSUPPORTED_MEDIA_TYPE);
         }
+        log.warn("Bad request: {}", error.getMessage());
         return sendBadRequest(session, "Internal error: " + error.getMessage(), ResponseStatus.BAD_REQUEST);
     }
 

@@ -22,10 +22,13 @@ const createDefaultImageData = (): ImageData => ({
 
 function App() {
     const [images, setImages] = useState<ImageData[]>([]);
+    const [folders, setFolder] = useState<ImageData[]>([]);
     const [originalImage, setOriginalImage] = useState<ImageData>(createDefaultImageData);
     const [isUploaderOpen, setIsUploaderOpen] = useState<boolean>(false);
     const [socket, setSocket] = useState<WebSocket | null>(null);
     const thumbnailTypeRef = useRef<ThumbnailType>(ThumbnailType.SMALL);
+    const currentFolderIdRef = useRef<number>(0);
+    const parentFolderIdRef = useRef<number>(0);
     const numberOfThumbnailsRef = useRef<number>(0);
     const imagesRef = useRef<ImageData[]>([]);
     // TODO Enuem
@@ -35,7 +38,7 @@ function App() {
 
     useEffect(() => {
         imagesRef.current = images;
-        if(thumbnailsMagazine.length){
+        if (thumbnailsMagazine.length) {
             addThumbnails(thumbnailsMagazine);
             setThumbnailsMagazine([]);
         }
@@ -62,7 +65,7 @@ function App() {
                 const message = {
                     type: MessageTypes.GET_THUMBNAILS,
                     thumbnailType: thumbnailTypeRef.current,
-                    folderId: 0
+                    folderId: currentFolderIdRef.current
                 };
 
                 console.log('Sending message to server on reconnect:', message);
@@ -100,6 +103,13 @@ function App() {
                     if (data.thumbnailsNumber !== null && data.thumbnailsNumber > 0) {
                         addIcons(data.thumbnailsNumber);
                         addThumbnails(thumbnailsMagazine);
+                    }
+                }
+
+                if (data.messageType === MessageTypes.FOLDERS_RESPONSE) {
+                    if (data.folderIds !== null) {
+                        parentFolderIdRef.current = data.parentId;
+                        addFolders(data.folderIds);
                     }
                 }
 
@@ -193,12 +203,12 @@ function App() {
         });
     };
 
-    const  addThumbnails = (thumbnails: ImageData[]) => {
+    const addThumbnails = (thumbnails: ImageData[]) => {
         setImages(prevImages => {
             const updatedImages = [...prevImages];
 
             for (const thumbnail of thumbnails) {
-                if(thumbnail.data === undefined || thumbnail.data === null) {
+                if (thumbnail.data === undefined || thumbnail.data === null) {
                     console.error("Thumbnail with missing data: " + thumbnail);
                     continue;
                 }
@@ -209,6 +219,33 @@ function App() {
         });
     };
 
+    const addFolders = (folders: number[]) => {
+        setFolder(() => {
+            const updatedFolders: ImageData[] = [];
+
+            if (currentFolderIdRef.current != 0) {
+                const newFolderIcon: ImageData = {
+                    data: configuration.previousFolder,
+                    id: parentFolderIdRef.current,
+                    iconOrder: parentFolderIdRef.current,
+                };
+
+                updatedFolders.push(newFolderIcon);
+            }
+
+            for (const folderId of folders) {
+                const newFolderIcon: ImageData = {
+                    data: configuration.currentFolder,
+                    id: folderId,
+                    iconOrder: folderId,
+                };
+
+                updatedFolders.push(newFolderIcon);
+            }
+
+            return updatedFolders;
+        });
+    };
 
     return (
         <div>
@@ -266,11 +303,14 @@ function App() {
             )}
             <ImageGallery
                 images={images}
+                folders={folders}
                 originalImage={originalImage}
                 socket={socket}
                 setImages={setImages}
                 setOriginalImage={setOriginalImage}
                 thumbnailTypeRef={thumbnailTypeRef}
+                currentFolderIdRef={currentFolderIdRef}
+                numberOfThumbnailsRef={numberOfThumbnailsRef}
             />
         </div>
     );

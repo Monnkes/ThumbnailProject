@@ -46,6 +46,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({onClose, socket}) => {
                     const message = {
                         type: MessageTypes.UPLOAD_ZIP,
                         zipData: base64Data,
+                        folderId: 0,
                     };
 
                     if (socket && socket.readyState === WebSocket.OPEN) {

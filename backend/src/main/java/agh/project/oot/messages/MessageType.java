@@ -9,6 +9,7 @@ public enum MessageType {
     DELETE_IMAGE_RESPONSE,
     INFO_RESPONSE,
     PLACEHOLDERS_NUMBER_RESPONSE,
+    FOLDERS_RESPONSE,
     PING,
     PONG
 }

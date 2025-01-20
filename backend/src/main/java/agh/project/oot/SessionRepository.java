@@ -20,5 +20,9 @@ public class SessionRepository {
     public void remove(WebSocketSession session) {
         sessions.remove(session.getId());
     }
+
+    public SessionData getSessionById(String sessionId) {
+        return sessions.get(sessionId);
+    }
 }
 
