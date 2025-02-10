@@ -8,15 +8,9 @@ import lombok.Setter;
 @Setter
 @EqualsAndHashCode
 public class IconDto {
-
     private Long id;
-
     private byte[] data;
-
     private Long iconOrder;
-
-    public IconDto() {
-    }
 
     public IconDto(Long id, byte[] data, Long iconOrder) {
         this.id = id;
@@ -30,13 +24,5 @@ public class IconDto {
 
     public static IconDto from(Image image) {
         return new IconDto(image.getId(), image.getData(), image.getImageOrder());
-    }
-
-    @Override
-    public String toString() {
-        return "Icon{" +
-                "id=" + id +
-                ", dataSize=" + data.length +
-                '}';
     }
 }

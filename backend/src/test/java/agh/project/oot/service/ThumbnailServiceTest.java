@@ -10,6 +10,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -19,6 +20,7 @@ import java.util.NoSuchElementException;
 import static agh.project.oot.model.ThumbnailType.SMALL;
 import static org.mockito.Mockito.*;
 
+// !TODO FIX
 @ExtendWith(MockitoExtension.class)
 class ThumbnailServiceTest {
 
@@ -117,7 +119,7 @@ class ThumbnailServiceTest {
                 .thenReturn(Flux.just(thumbnail1, thumbnail2));
 
         // Then
-        StepVerifier.create(thumbnailService.getAllThumbnailsByType(ThumbnailType.SMALL))
+        StepVerifier.create(thumbnailService.findAllThumbnailsByTypeAndFolder(SMALL, PageRequest.of(0, 35), 0L))
                 .expectNext(thumbnail1, thumbnail2)
                 .verifyComplete();
 
@@ -134,7 +136,7 @@ class ThumbnailServiceTest {
                 .thenReturn(Flux.empty());
 
         // Then
-        StepVerifier.create(thumbnailService.getAllThumbnailsByType(ThumbnailType.SMALL))
+        StepVerifier.create(thumbnailService.findAllThumbnailsByTypeAndFolder(SMALL, PageRequest.of(0, 35), 0L))
                 .expectNextCount(0)
                 .verifyComplete();
 
@@ -156,7 +158,7 @@ class ThumbnailServiceTest {
         when(imageService.findById(1L)).thenReturn(Mono.just(image));
 
         // Then
-        StepVerifier.create(thumbnailService.getImageByThumbnailId(1L))
+        StepVerifier.create(thumbnailService.findImageByThumbnailId(1L))
                 .expectNext(image)
                 .verifyComplete();
 
@@ -173,7 +175,7 @@ class ThumbnailServiceTest {
         when(thumbnailRepositoryMock.findById(1L)).thenReturn(Mono.empty());
 
         // Then
-        StepVerifier.create(thumbnailService.getImageByThumbnailId(1L))
+        StepVerifier.create(thumbnailService.findImageByThumbnailId(1L))
                 .expectError(NoSuchElementException.class)
                 .verify();
 

@@ -3,7 +3,6 @@ package agh.project.oot.thumbnails;
 import agh.project.oot.model.Image;
 import agh.project.oot.model.Thumbnail;
 import agh.project.oot.model.ThumbnailType;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.stereotype.Component;

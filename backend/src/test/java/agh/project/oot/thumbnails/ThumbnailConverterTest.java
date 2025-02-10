@@ -14,6 +14,7 @@ import java.io.IOException;
 import static agh.project.oot.model.ThumbnailType.SMALL;
 import static org.junit.jupiter.api.Assertions.*;
 
+// !TODO Fix it
 class ThumbnailConverterTest {
 
     /**

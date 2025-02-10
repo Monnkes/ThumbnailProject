@@ -7,6 +7,7 @@ import agh.project.oot.repository.ThumbnailRepository;
 import agh.project.oot.thumbnails.ThumbnailConverter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -35,7 +36,7 @@ public class ThumbnailService {
                 );
     }
 
-    // TODO Transfer this logic to Database
+    // !TODO Transfer this logic to Database
     private Flux<Thumbnail> generateMissingThumbnailsForImage(Image image) {
         return Flux.fromStream(Stream.of(ThumbnailType.SMALL, ThumbnailType.MEDIUM, ThumbnailType.BIG))
                 .flatMap(type -> thumbnailRepository.findByImageIdAndType(image.getId(), type)
@@ -46,6 +47,9 @@ public class ThumbnailService {
                                 })));
     }
 
+    public Mono<Thumbnail> save(Thumbnail thumbnail) {
+        return thumbnailRepository.save(thumbnail);
+    }
 
     public Flux<Thumbnail> saveThumbnailsForImage(Image savedImage) {
         return thumbnailConverter.generateAllThumbnails(savedImage)
@@ -56,31 +60,40 @@ public class ThumbnailService {
                 );
     }
 
-    /**
-     * Retrieves all thumbnails from the database.
-     *
-     * @return a Flux of all thumbnails.
-     */
-    public Flux<Thumbnail> getAllThumbnailsByType(ThumbnailType type) {
-        return thumbnailRepository.findByType(type)
+    public Flux<Thumbnail> findAllThumbnailsByTypeAndFolder(ThumbnailType type, Pageable pageable, Long folderId) {
+        int limit = pageable.getPageSize();
+        int offset = (pageable.getPageNumber()-1) * pageable.getPageSize();
+        return thumbnailRepository.findByTypeAndFolderPaginated(type, limit, offset, folderId.intValue())
                 .publishOn(Schedulers.parallel());
     }
 
-    /**
-     * Retrieves an image associated with a given thumbnail ID.
-     *
-     * @param thumbnailId the ID of the thumbnail.
-     * @return a Mono of the image associated with the thumbnail.
-     */
-    public Mono<Image> getImageByThumbnailId(Long thumbnailId) {
+    public Flux<Thumbnail> findAllThumbnailsAfterDeleting(ThumbnailType type, Integer page, Integer pageSize, Long folderId) {
+        int limit = page * pageSize;
+        int offset = 0;
+        return thumbnailRepository.findByTypeAndFolderPaginated(type, limit, offset, folderId.intValue())
+                .publishOn(Schedulers.parallel());
+    }
+
+    public Flux<Thumbnail> findAllThumbnailsByImageId(Long imageId) {
+        return thumbnailRepository.findByImageId(imageId)
+                .publishOn(Schedulers.parallel());
+    }
+
+    public Mono<Thumbnail> findThumbnailByThumbnailId(Long thumbnailId) {
         return thumbnailRepository.findById(thumbnailId)
+                .publishOn(Schedulers.parallel());
+    }
+
+    public Mono<Image> findImageByThumbnailId(Long thumbnailId) {
+        return findThumbnailByThumbnailId(thumbnailId)
                 .flatMap(thumbnail -> imageService.findById(thumbnail.getImageId())
                         .switchIfEmpty(Mono.error(new IllegalArgumentException("Image with ID " + thumbnail.getImageId() + " not found"))))
                 .switchIfEmpty(Mono.error(new NoSuchElementException("Thumbnail with ID " + thumbnailId + " not found")));
     }
 
-    public Mono<Thumbnail> save(Thumbnail thumbnail) {
-        return thumbnailRepository.save(thumbnail);
+    public Flux<Thumbnail> removeAllThumbnailsByImageId(Long imageId) {
+        return thumbnailRepository.removeAllByImageId(imageId)
+                .publishOn(Schedulers.parallel());
     }
 
     public Mono<Boolean> updateThumbnailOrder(Thumbnail thumbnail, long thumbnailOrder) {

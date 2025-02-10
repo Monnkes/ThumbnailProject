@@ -6,22 +6,16 @@ import lombok.Setter;
 import org.springframework.web.socket.WebSocketSession;
 
 @Getter
+@Setter
 public class SessionData {
     private final WebSocketSession session;
-
-    @Setter
     private ThumbnailType thumbnailType;
+    private Long folderId = 0L;
+    private Integer pageNumber;
 
-    public SessionData(WebSocketSession session, ThumbnailType thumbnailType) {
+    public SessionData(WebSocketSession session, ThumbnailType thumbnailType, Integer pageNumber) {
         this.session = session;
         this.thumbnailType = thumbnailType;
-    }
-
-    @Override
-    public String toString() {
-        return "SessionData{" +
-                "sessionId=" + session.getId() +
-                ", thumbnailType=" + thumbnailType +
-                '}';
+        this.pageNumber = pageNumber;
     }
 }

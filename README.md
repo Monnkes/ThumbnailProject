@@ -98,11 +98,34 @@ To run the application using Docker, follow these steps:
 - **[20-12-2024]** Fix bugs
 - **[20-12-2024]** Docker for tests
 - **[20-12-2024]** Frontend polishing
+
+### Milestone 2
+
 - **[30-12-2024]** New thumbnails sizes
 - **[01-01-2025]** Multiple sessions
 - **[02-01-2025]** Add reactive sink listener
 - **[02-01-2025]** Upgrade placeholders FE
 - **[03-01-2025]** Tests rewriting
+- **[07-01-2025]** Fix handling error in sink
+- **[07-01-2025]** Add displaying fullsize images 
+- **[08-01-2025]** Reconnecting after server failure
+- **[09-01-2025]** Generating thumbnails after failure
+- **[13-01-2025]** Add image order column
+- **[13-01-2025]** New message
+- **[16-01-2025]** Placeholders
+
+### Milestone 3
+
+- **[17-01-2025]** Enable zip upload
+- **[17-01-2025]** Folders
+- **[19-01-2025]** Add delete message
+- **[20-01-2025]** Fix thumbnils ordering with folders
+- **[21-01-2025]** Add displaying folders
+- **[21-01-2025]** Pagination
+- **[22-01-2025]** Deleting folders
+- **[22-01-2025]** Pagination With Packages
+- **[23-01-2025]** Transfering images to folders
+- **[24-01-2025]** Refactoring Before M3
 
 ## Links
 - [Documentation](https://lucid.app/lucidchart/d1242d14-599a-4b54-be8e-1b0afc12c6f4/edit?viewport_loc=9882%2C-418%2C14033%2C6586%2C0_0&invitationId=inv_491730a8-bb13-4598-88fb-191e7f3f69cd)

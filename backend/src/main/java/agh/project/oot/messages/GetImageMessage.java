@@ -11,7 +11,6 @@ import java.util.List;
 @Getter
 @Setter
 public final class GetImageMessage extends Message {
-    // TODO Consider using Long instance List
     private List<Long> ids;
     private List<IconDto> imagesData;
 

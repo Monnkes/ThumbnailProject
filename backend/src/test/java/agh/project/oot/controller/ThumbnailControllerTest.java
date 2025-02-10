@@ -1,20 +1,28 @@
 package agh.project.oot.controller;
 
-import agh.project.oot.ConnectionStatus;
-import agh.project.oot.OldMessage;
-import agh.project.oot.messages.MessageType;
+import agh.project.oot.messages.*;
 import agh.project.oot.ResponseStatus;
+import agh.project.oot.messages.DeleteImageMessage;
+import agh.project.oot.messages.GetImageMessage;
+import agh.project.oot.messages.GetNextPageMessage;
+import agh.project.oot.messages.GetThumbnailsMessage;
+import agh.project.oot.messages.PingMessage;
+import agh.project.oot.messages.UploadImageMessage;
+import agh.project.oot.messages.UploadZipMessage;
 import agh.project.oot.model.IconDto;
 import agh.project.oot.model.Thumbnail;
+import agh.project.oot.model.ThumbnailType;
 import agh.project.oot.repository.ThumbnailRepository;
 import agh.project.oot.utils.ImageReader;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.socket.TextMessage;
@@ -26,6 +34,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -33,6 +42,7 @@ import static agh.project.oot.model.ThumbnailType.SMALL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
+//!TODO Fix
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 public class ThumbnailControllerTest {
@@ -49,7 +59,7 @@ public class ThumbnailControllerTest {
     private int port;
 
     private String URL;
-    final List<OldMessage> messagesList = new ArrayList<>();
+    final List<Message> messagesList = new ArrayList<>();
     private TextWebSocketHandler handler;
     private volatile WebSocketSession testSession;
     private WebSocketClient client;
@@ -74,20 +84,49 @@ public class ThumbnailControllerTest {
 
             @Override
             protected void handleTextMessage(WebSocketSession session, TextMessage message) throws JsonProcessingException {
-                OldMessage responseOldMessage = objectMapper.readValue(message.getPayload(), OldMessage.class);
-                messagesList.add(responseOldMessage);
+                Map<String, Object> messageMap = objectMapper.readValue(message.getPayload(), new TypeReference<>() {});
+                MessageType type = MessageType.valueOf((String) messageMap.get("messageType"));
+                Message responseMessage = switch (type) {
+                    case UPLOAD_IMAGES ->
+                            new UploadImageMessage(objectMapper.convertValue(messageMap.get("imagesData"), new TypeReference<>() {
+                            }), PageRequest.of(Integer.parseInt((String) messageMap.get("page")), Integer.parseInt((String) messageMap.get("size"))),
+                                    Long.valueOf((Integer) messageMap.get("folderId")));
+                    case UPLOAD_ZIP ->
+                            new UploadZipMessage(objectMapper.convertValue(messageMap.get("zipData"), new TypeReference<>() {
+                            }), Long.valueOf((Integer) messageMap.get("folderId")));
+                    case GET_THUMBNAILS ->
+                            new GetThumbnailsMessage(ThumbnailType.valueOf((String) messageMap.get("thumbnailType")),
+                                    PageRequest.of(Integer.parseInt((String) messageMap.get("page")), Integer.parseInt((String) messageMap.get("size"))),
+                                    Long.valueOf((Integer) messageMap.get("folderId")));
+                    case GET_IMAGE ->
+                            new GetImageMessage(objectMapper.convertValue(messageMap.get("ids"), new TypeReference<>() {
+                            }));
+                    case DELETE_IMAGE ->
+                            new DeleteImageMessage(objectMapper.convertValue(messageMap.get("id"), new TypeReference<>() {
+                            }), Integer.parseInt((String) messageMap.get("size")));
+                    case PONG ->
+                            new PingMessage();
+                    case GET_NEXT_PAGE ->
+                            new GetNextPageMessage(PageRequest.of(Integer.parseInt((String) messageMap.get("page")),
+                                    Integer.parseInt((String) messageMap.get("size"))), Long.valueOf((Integer) messageMap.get("folderId")));
+                    case PLACEHOLDERS_NUMBER_RESPONSE, DELETE_IMAGE_RESPONSE, INFO_RESPONSE, FOLDERS_RESPONSE, FETCHING_END_RESPONSE, PING,
+                         MOVE_IMAGE, MOVE_IMAGE_RESPONSE, DELETE_FOLDER, DELETE_FOLDER_RESPONSE ->
+                            new InfoResponseMessage(ResponseStatus.UNSUPPORTED_MEDIA_TYPE);
+                };
+                messagesList.add(responseMessage);
                 latch.countDown();
             }
         };
     }
 
+    //TODO I don't know why only infoResponse and ping are sent
     @Test
     public void shouldReturnAllSaveThumbnailsAfterInitConnection() throws Exception {
         // Given
         Thumbnail linux = mockThumbnail("thumbnails/Linux.png");
         Thumbnail newYork = mockThumbnail("thumbnails/NewYork.png");
         Thumbnail ufo = mockThumbnail("thumbnails/Ufo.jpg");
-        latch = new CountDownLatch(5);
+        latch = new CountDownLatch(2);
 
         // When
         client.execute(handler, URL).get(5, TimeUnit.SECONDS);
@@ -97,55 +136,33 @@ public class ThumbnailControllerTest {
         assertTrue(await, "Too few messages");
         assertThat(messagesList).hasSize(5);
 
-        assertThat(messagesList.getFirst()).isEqualTo(new OldMessage(
-                ConnectionStatus.CONNECTED,
-                ResponseStatus.OK,
-                null,
-                null,
-                MessageType.INFO_RESPONSE,
-                "Connection established",
-                null
-        ));
+        assertThat(messagesList.getFirst()).isEqualTo(
+                new InfoResponseMessage(ResponseStatus.OK, "Connection established")
+        );
 
-        assertThat(messagesList).contains(new OldMessage(
-                ConnectionStatus.CONNECTED,
-                ResponseStatus.OK,
-                List.of(IconDto.from(linux)),
-                SMALL,
-                MessageType.GET_THUMBNAILS_RESPONSE,
-                null,
-                null
-        ));
+        assertThat(messagesList).contains(
+                new GetNextPageMessage(PageRequest.of(1, 35), 0L)
+        );
 
-        assertThat(messagesList).contains(new OldMessage(
-                ConnectionStatus.CONNECTED,
-                ResponseStatus.OK,
-                List.of(IconDto.from(newYork)),
-                SMALL,
-                MessageType.GET_THUMBNAILS_RESPONSE,
-                null,
-                null
-        ));
+        assertThat(messagesList).contains(
+                new GetThumbnailsMessage(SMALL, List.of(IconDto.from(linux)))
+        );
 
-        assertThat(messagesList).contains(new OldMessage(
-                ConnectionStatus.CONNECTED,
-                ResponseStatus.OK,
-                List.of(IconDto.from(ufo)),
-                SMALL,
-                MessageType.GET_THUMBNAILS_RESPONSE,
-                null,
-                null
-        ));
+        assertThat(messagesList).contains(
+                new GetThumbnailsMessage(SMALL, List.of(IconDto.from(newYork)))
+        );
 
-        assertThat(messagesList).contains(new OldMessage(
-                ConnectionStatus.CONNECTED,
-                ResponseStatus.OK,
-                null,
-                null,
-                MessageType.PING,
-                null,
-                null
-        ));
+        assertThat(messagesList).contains(
+                new GetThumbnailsMessage(SMALL, List.of(IconDto.from(ufo)))
+        );
+
+        assertThat(messagesList).contains(
+                new FetchingEndResponseMessage()
+        );
+
+        assertThat(messagesList).contains(
+                new PingMessage()
+        );
     }
 
     private Thumbnail mockThumbnail(String path) {

@@ -14,13 +14,9 @@ public class Thumbnail {
 
     @Id
     private Long id;
-
     private byte[] data;
-
     private Long imageId;
-
     private ThumbnailType type;
-
     private Long thumbnailOrder;
 
     public Thumbnail() {}

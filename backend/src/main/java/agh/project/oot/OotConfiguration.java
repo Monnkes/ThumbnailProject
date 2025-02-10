@@ -1,12 +1,16 @@
 package agh.project.oot;
 
 import agh.project.oot.controller.ThumbnailController;
+import agh.project.oot.repository.FolderRepository;
 import agh.project.oot.repository.ThumbnailRepository;
-import agh.project.oot.service.ImageService;
-import agh.project.oot.service.MessageService;
-import agh.project.oot.service.ThumbnailService;
+import agh.project.oot.service.*;
 import agh.project.oot.thumbnails.ThumbnailConverter;
+import agh.project.oot.util.ImageProcessor;
+import agh.project.oot.util.MessageParser;
+import agh.project.oot.util.ZipResolver;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -21,8 +25,8 @@ import org.springframework.web.socket.server.standard.ServletServerContainerFact
 public class OotConfiguration {
 
     @Bean
-    public ThumbnailController thumbnailController(@Lazy MessageService messageService, SessionRepository sessionManager) {
-        return new ThumbnailController(messageService, sessionManager);
+    public ThumbnailController thumbnailController(@Lazy MessageService messageService, SessionRepository sessionManager, MessageSender messageSender, MessageParser messageParser) {
+        return new ThumbnailController(messageService, sessionManager, messageSender, messageParser);
     }
 
     @Bean
@@ -38,19 +42,71 @@ public class OotConfiguration {
     }
 
     @Bean
-    public ObjectMapper objectMapper() {
+    public FolderService folderService(FolderRepository folderRepository) {
+        return new FolderService(folderRepository);
+    }
+
+    @Bean
+    public ImageOrderService imageOrderService(FolderService folderService, ImageService imageService,
+                                               ThumbnailService thumbnailService) {
+        return new ImageOrderService(folderService, imageService, thumbnailService);
+    }
+
+    @Bean
+    public MessageSender messageSender(ThumbnailService thumbnailService,
+                                       SessionRepository sessionRepository,
+                                       FolderService folderService,
+                                       ObjectMapper objectMapper) {
+        return new MessageSender(thumbnailService, sessionRepository, folderService, objectMapper);
+    }
+
+    @Bean
+    public MessageParser messageParser(ObjectMapper objectMapper) {
+        return new MessageParser(objectMapper);
+    }
+
+    @Bean
+    public ZipResolver zipResolver(FolderService folderService) {
+        return new ZipResolver(folderService);
+    }
+
+    @Bean
+    public ImageProcessor imageProcessor(ImageSink imageSink,
+                                         ThumbnailService thumbnailService,
+                                         ImageService imageService,
+                                         ImageOrderService imageOrderService,
+                                         SessionRepository sessionManager,
+                                         MessageSender messageSender) {
+        return new ImageProcessor(imageSink, thumbnailService, imageService, imageOrderService, sessionManager, messageSender);
+    }
+
+    @Bean
+    public ObjectMapper objectMapper(@Value("${configuration.maxStringLength}") int maxStringLength) {
+        JsonFactory jsonFactory = Jackson2ObjectMapperBuilder.json().build().getFactory();
+
+        StreamReadConstraints constraints = StreamReadConstraints.builder()
+                .maxStringLength(maxStringLength)
+                .build();
+
+        jsonFactory.setStreamReadConstraints(constraints);
+
         return Jackson2ObjectMapperBuilder.json()
                 .serializationInclusion(JsonInclude.Include.NON_NULL)
+                .factory(jsonFactory)
                 .build();
     }
 
     @Bean
-    public MessageService messageService(ObjectMapper objectMapper,
-                                         ImageSink imageSink,
-                                         ThumbnailService thumbnailService,
+    public MessageService messageService(ThumbnailService thumbnailService,
                                          ImageService imageService,
-                                         SessionRepository sessionRepository) {
-        return new MessageService(objectMapper, imageSink, thumbnailService, imageService, sessionRepository);
+                                         SessionRepository sessionRepository,
+                                         FolderService folderService,
+                                         ImageOrderService imageOrderService,
+                                         ImageProcessor imageProcessor,
+                                         MessageSender messageSender,
+                                         ZipResolver zipResolver) {
+        return new MessageService(thumbnailService, imageService,
+                sessionRepository, folderService, imageOrderService, imageProcessor, messageSender, zipResolver);
     }
 
     @Bean

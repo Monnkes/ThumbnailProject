@@ -15,11 +15,11 @@ public class Image{
 
     @Id
     private Long id;
-
     private byte[] data;
 
     @Column("image_order")
     private Long imageOrder;
+    private Long folderId = 0L;
 
     public Image() {}
 

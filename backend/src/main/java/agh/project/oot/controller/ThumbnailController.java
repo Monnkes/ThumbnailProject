@@ -3,6 +3,21 @@ package agh.project.oot.controller;
 import agh.project.oot.ResponseStatus;
 import agh.project.oot.SessionRepository;
 import agh.project.oot.messages.*;
+import agh.project.oot.messages.DeleteFolderMessage;
+import agh.project.oot.messages.DeleteFolderResponseMessage;
+import agh.project.oot.messages.DeleteImageMessage;
+import agh.project.oot.messages.DeleteImageResponseMessage;
+import agh.project.oot.messages.GetImageMessage;
+import agh.project.oot.messages.GetNextPageMessage;
+import agh.project.oot.messages.GetThumbnailsMessage;
+import agh.project.oot.messages.MoveImageMessage;
+import agh.project.oot.messages.MoveImageResponseMessage;
+import agh.project.oot.messages.PingMessage;
+import agh.project.oot.messages.PongMessage;
+import agh.project.oot.messages.UploadImageMessage;
+import agh.project.oot.messages.UploadZipMessage;
+import agh.project.oot.util.MessageParser;
+import agh.project.oot.service.MessageSender;
 import agh.project.oot.service.MessageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +39,8 @@ public class ThumbnailController extends AbstractWebSocketHandler {
     @Lazy
     private final MessageService messageService;
     private final SessionRepository sessionRepository;
+    private final MessageSender messageSender;
+    private final MessageParser messageParser;
 
     @Override
     public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) {
@@ -37,32 +54,44 @@ public class ThumbnailController extends AbstractWebSocketHandler {
     }
 
     private Mono<Void> processMessage(WebSocketSession session, TextMessage textMessage) {
-        return messageService.parseMessage(textMessage.getPayload())
+        return messageParser.parseMessage(textMessage.getPayload())
                 .flatMap(message -> switch (message) {
                     case UploadImageMessage uploadImageMessage -> messageService.handleUploadImages(uploadImageMessage);
+                    case UploadZipMessage uploadZipMessage -> messageService.handleUploadZip(uploadZipMessage);
                     case GetThumbnailsMessage getThumbnailsMessage -> setThumbnailTypeAndResponse(session, getThumbnailsMessage);
                     case GetImageMessage getImageMessage -> messageService.handleGetImage(session, getImageMessage);
-                    case PingMessage pingMessage -> messageService.sendPingWithDelay(session, pingMessage);
-                    case InfoResponseMessage infoResponseMessage ->
-                            messageService.sendBadRequest(session, "Unknown message type", ResponseStatus.UNSUPPORTED_MEDIA_TYPE);
-                    //Temporary
-                    default -> throw new IllegalStateException("Unexpected value: " + message);
+                    case MoveImageMessage moveImageMessage -> messageService.handleMoveImage(session, moveImageMessage);
+                    case DeleteImageMessage deleteImageMessage -> messageService.handleDeleteImage(deleteImageMessage);
+                    case DeleteFolderMessage deleteFolderMessage -> messageService.handleDeleteFolder(deleteFolderMessage);
+                    case PingMessage pingMessage -> messageSender.sendPingWithDelay(session, pingMessage);
+                    case GetNextPageMessage getNextPageMessage -> messageService.handleGetNextPage(session, getNextPageMessage);
+                    case InfoResponseMessage ignored -> messageSender.sendBadRequest(session, "Unknown message type", ResponseStatus.UNSUPPORTED_MEDIA_TYPE);
+                    case PongMessage ignored -> messageSender.sendBadRequest(session, "Unknown message type", ResponseStatus.UNSUPPORTED_MEDIA_TYPE);
+                    case PlaceholderNumberMessage ignored -> messageSender.sendBadRequest(session, "Unknown message type", ResponseStatus.UNSUPPORTED_MEDIA_TYPE);
+                    case FoldersResponseMessage ignored -> messageSender.sendBadRequest(session, "Unknown message type", ResponseStatus.UNSUPPORTED_MEDIA_TYPE);
+                    case FetchingEndResponseMessage ignored -> messageSender.sendBadRequest(session, "Unknown message type", ResponseStatus.UNSUPPORTED_MEDIA_TYPE);
+                    case MoveImageResponseMessage ignored -> messageSender.sendBadRequest(session, "Unknown message type", ResponseStatus.UNSUPPORTED_MEDIA_TYPE);
+                    case DeleteFolderResponseMessage ignored -> messageSender.sendBadRequest(session, "Unknown message type", ResponseStatus.UNSUPPORTED_MEDIA_TYPE);
+                    case DeleteImageResponseMessage ignored -> messageSender.sendBadRequest(session, "Unknown message type", ResponseStatus.UNSUPPORTED_MEDIA_TYPE);
                 })
-                .onErrorResume(error -> messageService.sendErrorResponse(session, error));
+                .onErrorResume(error -> messageSender.sendErrorResponse(session, error));
     }
 
     private Mono<Void> setThumbnailTypeAndResponse(WebSocketSession session, GetThumbnailsMessage message) {
         sessionRepository.getSessions().computeIfPresent(session.getId(), (key, sessionData) -> {
             sessionData.setThumbnailType(message.getThumbnailType());
+            sessionData.setPageNumber(message.getPageable().getPageNumber());
             return sessionData;
         });
+        sessionRepository.getSessionById(session.getId()).setFolderId(message.getFolderId());
+
         return messageService.handleGetAllThumbnails(session, message);
     }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         messageService.afterConnectionEstablished(session);
-        sessionRepository.addSession(session, SMALL);
+        sessionRepository.addSession(session, SMALL, 1);
 
         log.info("Connection established; session id:{}", session.getId());
     }

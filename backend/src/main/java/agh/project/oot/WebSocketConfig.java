@@ -17,6 +17,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
     }
 
     @Override
+    //TODO transfer /upload-files to configuration
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(thumbnailController, "/upload-files")
                 .setAllowedOrigins("*");

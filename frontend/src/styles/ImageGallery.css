@@ -6,6 +6,8 @@
     gap: 10px;
     padding: 20px;
     grid-auto-rows: minmax(150px, auto);
+    position: relative;
+    z-index: 1;
 }
 
 .image-container {
@@ -27,3 +29,94 @@
     color: #555;
     margin-top: 20px;
 }
+
+.delete-button {
+    position: absolute;
+    left: 5px;
+    top: 5px;
+    width: 24px;
+    height: 24px;
+    background-color: #ff0000b5;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 16px;
+    cursor: pointer;
+    box-shadow: 0 0 10px #ff000066;
+}
+
+.delete-button:hover {
+    background-color: #9b0404;
+}
+
+.move-checkbox {
+    position: absolute;
+    right: 5px;
+    top: 5px;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    appearance: none;
+    border: 2px solid #ccc;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgb(200 200 200 / 40%);
+    box-shadow: 0 0 10px rgb(0 0 0 / 40%);
+}
+
+.move-checkbox:hover {
+    background-color: #888;
+    border-color: #373737;
+}
+
+.move-checkbox:checked {
+    background-color: #555;
+    border-color: #141414;
+}
+
+.folder-container {
+    display: inline-block;
+    position: relative;
+}
+
+.folder-container .image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+}
+.folder-label {
+    position: absolute;
+    bottom: 22px;
+    background-color: white;
+    color: black;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 12px;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.folder-container .folder-id {
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+}
+
+.folder-container .folder-name {
+    left: 50%;
+    width: 120px;
+    height: 24px;
+    bottom: 90px;
+    border-radius: 10px;
+    transform: translateX(-50%);
+}
+
+

@@ -15,5 +15,4 @@ public enum ThumbnailType {
         this.width = width;
         this.height = height;
     }
-
 }

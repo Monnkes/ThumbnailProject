@@ -39,13 +39,29 @@ public class ImageService {
                 .doOnError(error -> log.error("Error retrieving images from the database", error));
     }
 
+    public Mono<Long> findFolderIdByImageId(Long id) {
+        return findById(id).map(Image::getFolderId)
+                .doOnError(error -> log.error("Error getting folder for imageId", error));
+    }
+
+    public Flux<Image> findImagesByFolderIdOrderByImageOrder(Long folderId) {
+        return imageRepository.findByFolderIdOrderByImageOrder(folderId)
+                .doOnError(error -> log.error("Error getting images for folderId", error));
+    }
+
+    public Mono<Long> findTopByFolderIdOrderByImageOrderDesc(Long folderId) {
+        return imageRepository.findTopByFolderIdOrderByImageOrderDesc(folderId)
+                .map(Image::getImageOrder)
+                .doOnError(error -> log.error("Error finding top for folderId", error));
+    }
+
     public Mono<Void> removeById(Long id) {
         return imageRepository.deleteById(id)
                 .doOnError(error -> log.error("Error removing image from database", error));
     }
 
-    public Mono<Long> countImages() {
-        return imageRepository.count()
+    public Mono<Long> countImagesByFolderId(Long folderId) {
+        return imageRepository.countByFolderId(folderId)
                 .doOnError(error -> log.error("Error counting images in database", error));
     }
 
@@ -56,11 +72,9 @@ public class ImageService {
                 .doOnError(error -> log.error("Error updating image order for imageId: {}", image.getId(), error));
     }
 
-    public Mono<Long> getImageOrderById(Long id) {
-        return findById(id).map(Image::getImageOrder);
-    }
-
-    public Mono<Integer> getTopImageOrder() {
-        return imageRepository.getTopByOrderByImageOrderDesc();
+    public Mono<Boolean> updateFolderId(Long id, Long folderId) {
+        return imageRepository.updateFolderId(id, folderId)
+                .map(rowsUpdated -> rowsUpdated > 0)
+                .doOnError(error -> log.error("Error updating folderId for imageId: {}", id, error));
     }
 }
